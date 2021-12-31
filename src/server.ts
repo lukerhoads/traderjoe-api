@@ -1,8 +1,7 @@
 import * as http from 'http'
+import express, { Request, Response, NextFunction } from 'express'
 import * as bodyParser from 'body-parser'
-import express from 'express'
 import swaggerUi from 'swagger-ui-express'
-import { Address } from './constants'
 
 export class Server {
     protected app: express.Application
@@ -17,6 +16,10 @@ export class Server {
         this.setupDocs()
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
+
+        this.app.get('/', (req: Request, res: Response, next: NextFunction) => {
+            res.sendStatus(200)
+        })
 
         // Add versioning
         // base: ${url}/${version}/${service}
@@ -41,10 +44,10 @@ export class Server {
     }
 
     private async setupDocs() {
-        this.app.use('/docs', swaggerUi.serve, swaggerUi.setup(undefined, {
-            swaggerOptions: {
-                url: '/swagger.json'
-            }
-        }))
+        // this.app.use('/docs', swaggerUi.serve, swaggerUi.setup(undefined, {
+        //     swaggerOptions: {
+        //         url: '/swagger.json'
+        //     }
+        // }))
     }
 }

@@ -9,8 +9,9 @@
     "noImplicitAny": true,
     "sourceMap": true,
     "esModuleInterop": true,
-    "rootDir": "src",
+    "rootDir": ".",
     "outDir": "dist",
+    "resolveJsonModule": true
   },
   "include": ["src"]
 }

@@ -13,6 +13,7 @@
   "homepage": "https://github.com/lukerhoads/traderjoe-api#readme",
   "dependencies": {
     "body-parser": "^1.19.1",
+    "ethers": "^5.5.2",
     "express": "^4.17.2",
     "swagger-ui-express": "^4.3.0",
     "ts-node": "^10.4.0",
