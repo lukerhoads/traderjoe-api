@@ -1,17 +1,17 @@
 {
-  "compilerOptions": {
-    "strict": true,
-    "module": "commonjs",
-    "moduleResolution": "node",
-    "target": "es6",
-    "jsx": "react",
-    "lib": ["es6"],
-    "noImplicitAny": true,
-    "sourceMap": true,
-    "esModuleInterop": true,
-    "rootDir": ".",
-    "outDir": "dist",
-    "resolveJsonModule": true
-  },
-  "include": ["src"]
+    "compilerOptions": {
+        "strict": true,
+        "module": "commonjs",
+        "moduleResolution": "node",
+        "target": "es6",
+        "jsx": "react",
+        "lib": ["es6"],
+        "noImplicitAny": true,
+        "sourceMap": true,
+        "esModuleInterop": true,
+        "rootDir": ".",
+        "outDir": "dist",
+        "resolveJsonModule": true
+    },
+    "include": ["src"]
 }
