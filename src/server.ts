@@ -6,6 +6,10 @@ import { SupplyController } from './routes/supply'
 import Config from './config'
 import { Controller } from './routes/controller'
 import { PriceController } from './routes/price'
+import { NFTController } from './routes/nft'
+import { BankerController } from './routes/banker'
+import { MetricsController } from './routes/metrics'
+
 
 export class Server {
     protected config: Config
@@ -25,8 +29,8 @@ export class Server {
         this.setupDocs()
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
-        this.app.get('/', (req: Request, res: Response, next: NextFunction) => {
-            res.sendStatus(200)
+        this.app.get('/ping', (req: Request, res: Response, next: NextFunction) => {
+            res.send('Pong')
         })
 
         const versionRouter = express.Router()
@@ -41,8 +45,21 @@ export class Server {
         versionRouter.use('/price', priceController.apiRouter)
         this.controllers.push(priceController)
 
-        // Add rate limiting
+        const nftController = new NFTController()
+        await nftController.init()
+        versionRouter.use('/nft', nftController.apiRouter)
+        this.controllers.push(nftController)
 
+        const bankerController = new BankerController()
+        await bankerController.init()
+        versionRouter.use('/lending', bankerController.apiRouter)
+        this.controllers.push(bankerController)
+
+        const metricsController = new MetricsController()
+        await metricsController.init()
+        versionRouter.use('/metrics', metricsController.apiRouter)
+        this.controllers.push(metricsController)    
+    
         this.app.use(this.config.config.version, versionRouter)
     }
 
@@ -72,7 +89,7 @@ export class Server {
             swaggerUi.serve,
             swaggerUi.setup(undefined, {
                 swaggerOptions: {
-                    url: '/swagger.json',
+                    url: './swagger.yaml',
                 },
             })
         )

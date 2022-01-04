@@ -5,8 +5,9 @@ import { BigNumber, Contract, ethers } from "ethers"
 import { decimalMultiplier } from "../util/decimal_multiplier"
 
 import JoeBarContractABI from '../../abi/JoeBar.json'
-import JoeFactoryABI from '../../abi/JoeToken.json'
+import JoeFactoryABI from '../../abi/JoeFactory.json'
 import ERC20 from '../../abi/ERC20.json'
+import { formatRes } from "../util/format_res"
 
 const JoeFactoryContract = new ethers.Contract(
     Address.JOE_FACTORY_ADDRESS,
@@ -27,12 +28,15 @@ const JoeContract = new ethers.Contract(
 )
 
 export class PriceController {
+    private hardRefreshInterval: NodeJS.Timer
+
     private pairs: { [address: string]: string }
     private decimals: { [address: string]: number }
     private contracts: { [address: string]: Contract }
     private cachedPrices: { [address: string]: BigNumber }
 
     constructor() {
+        this.hardRefreshInterval = setInterval(() => {})
         this.pairs = {}
         this.decimals = {}
         this.contracts = {}
@@ -40,32 +44,38 @@ export class PriceController {
     }
 
     async init() {
+        this.hardRefreshInterval = setInterval(() => {
 
+        })
     }
 
     get apiRouter() {
         const router = express.Router()
         
         // Query param or part of url?
-        router.get('/usd', (req, res, next) => {
+        router.get('/usd/:tokenAddress', async (req, res, next) => {
+            const tokenAddress = req.params.tokenAddress
+            const tokenPrice = await this.getPrice(tokenAddress, false)
+            res.send(formatRes(tokenPrice.toString()))
+        }) 
 
-        })
-
-        router.get('/avax', (req, res, next) => {
-            
+        router.get('/avax/:tokenAddress', async (req, res, next) => {
+            const tokenAddress = req.params.tokenAddress
+            const tokenPrice = await this.getPrice(tokenAddress, true)
+            res.send(formatRes(tokenPrice.toString()))
         })
 
         return router 
     }
 
-    protected async getPair(tokenAddress: string) {
+    protected async getPair(tokenAddress: string): Promise<string | undefined> {
         if (this.pairs[tokenAddress]) {
             return this.pairs[tokenAddress]
         }
 
         const pairAddress = await PriceController.getPairAddress(tokenAddress)
-        if (pairAddress === Address.ZERO_ADDRESS) {
-            return pairAddress
+        if (!pairAddress || pairAddress === Address.ZERO_ADDRESS) {
+            return undefined
         }
 
         this.pairs[tokenAddress] = pairAddress
@@ -77,13 +87,13 @@ export class PriceController {
             return this.decimals[tokenAddress]
         }
 
-        const tokenContract = await this.getContract(tokenAddress)
+        const tokenContract = this.getContract(tokenAddress)
         const decimals = await tokenContract.decimals()
         this.decimals[tokenAddress] = decimals
         return decimals
     }
 
-    protected async getContract(tokenAddress: string) {
+    protected getContract(tokenAddress: string) {
         if (this.contracts[tokenAddress]) {
             return this.contracts[tokenAddress]
         }
@@ -117,21 +127,36 @@ export class PriceController {
 
         const joeBalance = await JoeContract.balanceOf(Address.XJOE_ADDRESS)
         const totalSupply = await XJoeContract.totalSupply()
+        // Look into why mantissa is used here, after all it is divided out anyways
         const ratio = joeBalance.mul(BigNumberMantissa).div(totalSupply)
         const price = await this.getPrice(Address.JOE_ADDRESS, true)
-        this.cachedPrices[Address.XJOE_ADDRESS] = 
+        const parsedPrice = price.mul(ratio).div(BigNumberMantissa)
+        this.cachedPrices[Address.XJOE_ADDRESS] = parsedPrice
+        return parsedPrice
     }
 
-    protected async getPrice(token: string) {
-        if (token === Address.WAVAX_ADDRESS) {
+    protected async getPrice(tokenAddress: string, derived: boolean): Promise<BigNumber> {
+        if (tokenAddress === Address.WAVAX_ADDRESS) {
             return await this.getAvaxPrice()
         }
 
-        if (token === Address.XJOE_ADDRESS) {
+        if (tokenAddress === Address.XJOE_ADDRESS) {
             return await this.getXJoePrice()
         }
 
-        
+        if (this.cachedPrices[tokenAddress]) {
+            return this.cachedPrices[tokenAddress]
+        }
+
+        const pairAddress = await this.getPair(tokenAddress)
+        if (!pairAddress) {
+            throw new Error(`Error given address ${tokenAddress}, isn't paired with WAVAX on TraderJoe`)
+        }
+
+        const reserve = await this.getReserves(Address.WAVAX_ADDRESS, tokenAddress, pairAddress)
+        const price = reserve[0].mul(BigNumberMantissa).div(reserve[1])
+        this.cachedPrices[tokenAddress] = price
+        return derived ? price : this.cachedPrices[Address.WAVAX_ADDRESS].mul(this.cachedPrices[tokenAddress]).div(BigNumberMantissa)
     }
 
     protected async getReserves(token0Address: string, token1Address: string, pairAddress: string): Promise<BigNumber[]> {
@@ -140,9 +165,9 @@ export class PriceController {
             this.getDecimals(token1Address)
         ])
 
-        const token0Contract = await this.getContract(token0Address)
+        const token0Contract = this.getContract(token0Address)
         const token0Balance = await token0Contract.balanceOf(pairAddress)
-        const token1Contract = await this.getContract(token1Address)
+        const token1Contract = this.getContract(token1Address)
         const token1Balance = await token1Contract.balanceOf(pairAddress)
 
         return [
@@ -151,7 +176,7 @@ export class PriceController {
         ]
     }
 
-    protected static async getPairAddress(tokenAddress: string) {
+    private static async getPairAddress(tokenAddress: string): Promise<string | undefined> {
         if (tokenAddress) {
             if (tokenAddress > Address.WAVAX_ADDRESS) {
                 return JoeFactoryContract.getPair(tokenAddress, Address.WAVAX_ADDRESS)
@@ -164,6 +189,6 @@ export class PriceController {
     }
 
     async close() {
-
+        clearInterval(this.hardRefreshInterval)
     }
 }
