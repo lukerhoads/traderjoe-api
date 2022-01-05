@@ -53,12 +53,12 @@ export class Server {
 
         const versionRouter = express.Router()
 
-        const supplyController = new SupplyController()
+        const supplyController = new SupplyController(this.config.config.supplyRefreshTimeout)
         await supplyController.init()
         versionRouter.use('/supply', supplyController.apiRouter)
         this.controllers.push(supplyController)
 
-        const priceController = new PriceController()
+        const priceController = new PriceController(this.config.config.priceRefreshTimeout)
         await priceController.init()
         versionRouter.use('/price', priceController.apiRouter)
         this.controllers.push(priceController)
@@ -69,13 +69,14 @@ export class Server {
         this.controllers.push(nftController)
 
         const bankerController = new BankerController(
-            this.config.config.lendingGraphUrl
+            this.config.config.lendingGraphUrl,
+            this.config.config.bankRefreshTimeout
         )
         await bankerController.init()
         versionRouter.use('/lending', bankerController.apiRouter)
         this.controllers.push(bankerController)
 
-        const metricsController = new MetricsController()
+        const metricsController = new MetricsController(this.config.config.exchangeGraphUrl, this.config.config.metricsRefreshTimeout)
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
         this.controllers.push(metricsController)

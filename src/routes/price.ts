@@ -28,6 +28,7 @@ const JoeContract = new ethers.Contract(
 )
 
 export class PriceController {
+    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
     private pairs: { [address: string]: string }
@@ -35,7 +36,8 @@ export class PriceController {
     private contracts: { [address: string]: Contract }
     private cachedPrices: { [address: string]: BigNumber }
 
-    constructor() {
+    constructor(refreshInterval: number) {
+        this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
         this.pairs = {}
         this.decimals = {}
@@ -44,7 +46,12 @@ export class PriceController {
     }
 
     async init() {
-        this.hardRefreshInterval = setInterval(() => {})
+        this.hardRefreshInterval = setInterval(() => {
+            // Idk what optimizations we can make, perhaps getting the most commonly used prices
+
+            // Set this to empty because these change often
+            this.cachedPrices = {}
+        }, this.refreshInterval)
     }
 
     get apiRouter() {

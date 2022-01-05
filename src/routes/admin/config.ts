@@ -1,0 +1,1 @@
+// Admin routes to set config such as refreshinterval

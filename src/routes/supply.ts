@@ -6,9 +6,6 @@ import { formatRes } from '../util/format_res'
 
 import JoeContractABI from '../../abi/JoeToken.json'
 
-// Every minute, the information is retrieved straight from the contract.
-const hardRefreshInterval = 60000
-
 const JoeContract = new ethers.Contract(
     Address.JOE_ADDRESS,
     JoeContractABI,
@@ -20,13 +17,15 @@ const burnFilter = JoeContract.filters.Transfer(null, Address.BURN_ADDRESS)
 // I think there could be a better design for TVL, where we initially get it and then
 // listen for Ethers events
 export class SupplyController {
+    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
     private circulatingSupply: BigNumber
     private maxSupply: BigNumber
     private totalSupply: BigNumber
 
-    constructor() {
+    constructor(refreshInterval: number) {
+        this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
         this.circulatingSupply = BigNumber.from('0')
         this.maxSupply = BigNumber.from('0')
@@ -36,16 +35,15 @@ export class SupplyController {
     async init() {
         await this.resetMetrics()
 
-        // Subscribe to deposit events or other TVL changing events
+        // Subscribe to burn events or other TVL changing events
         JoeContract.on(burnFilter, (from, to, value) => {
             const bnValue = BigNumber.from(value)
             this.totalSupply.sub(bnValue)
         })
 
         this.hardRefreshInterval = setInterval(async () => {
-            console.log('In supply refresh')
             await this.resetMetrics()
-        }, hardRefreshInterval)
+        }, this.refreshInterval)
     }
 
     async resetMetrics() {

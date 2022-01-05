@@ -4,9 +4,6 @@ import express from 'express'
 import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
 import { formatRes } from '../util/format_res'
 import { marketsQuery } from '../queries'
-import { utils } from 'ethers'
-
-const hardRefreshInterval = 60000
 
 export interface Market {
     totalSupply: string 
@@ -17,16 +14,19 @@ export interface Market {
 
 export class BankerController {
     private graphClient: ApolloClient<NormalizedCacheObject>
+
+    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
     private totalSupply: BigNumber
     private totalBorrow: BigNumber
 
-    constructor(lendingGraphUrl: string) {
+    constructor(lendingGraphUrl: string, refreshInterval: number) {
         this.graphClient = new ApolloClient<NormalizedCacheObject>({
             uri: lendingGraphUrl,
             cache: new InMemoryCache()
         })
+        this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
         this.totalSupply = BigNumber.from("0")
         this.totalBorrow = BigNumber.from("0")
@@ -36,7 +36,7 @@ export class BankerController {
         await this.queryBalances()
         this.hardRefreshInterval = setInterval(async () => {
             await this.queryBalances()
-        }, hardRefreshInterval)
+        }, this.refreshInterval)
     }
 
     async queryBalances() {
