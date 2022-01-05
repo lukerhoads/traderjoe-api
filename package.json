@@ -6,22 +6,29 @@
     "scripts": {
         "build": "npx tsc",
         "start": "node dist/main.js",
-        "dev": "nodemon src/main.ts",
+        "dev": "nodemon --watch openapi.yaml src/main.ts",
         "format": "yarn prettier --write .",
         "swagger": ""
     },
     "homepage": "https://github.com/lukerhoads/traderjoe-api#readme",
     "dependencies": {
+        "@apollo/client": "^3.5.6",
         "body-parser": "^1.19.1",
+        "cross-fetch": "^3.1.4",
         "ethers": "^5.5.2",
         "express": "^4.17.2",
-        "swagger-ui-express": "^4.3.0"
+        "graphql": "^16.2.0",
+        "graphql-tag": "^2.12.6",
+        "node-fetch": "^3.1.0",
+        "swagger-ui-express": "^4.3.0",
+        "yamljs": "^0.3.0"
     },
     "devDependencies": {
         "@types/body-parser": "^1.19.2",
         "@types/dotenv": "^8.2.0",
         "@types/express": "^4.17.13",
         "@types/swagger-ui-express": "^4.1.3",
+        "@types/yamljs": "^0.2.31",
         "dotenv": "^10.0.0",
         "prettier": "^2.5.1",
         "swagger": "^0.7.5",

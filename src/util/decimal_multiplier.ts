@@ -1,5 +1,5 @@
-import { BigNumber } from "ethers"
+import { BigNumber } from 'ethers'
 
 export const decimalMultiplier = (decimals: BigNumber) => {
-    return BigNumber.from("10").pow(decimals)
+    return BigNumber.from('10').pow(decimals)
 }

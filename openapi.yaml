@@ -1,43 +1,269 @@
 openapi: 3.0.0
 info:
-  title: TraderJoe API
-  description: Easily retrieve info on the state of Trader Joe.
-  version: 0.0.1
+    title: TraderJoe API
+    description: Easily retrieve info on the state of Trader Joe.
+    version: 0.0.1
 basePath: /v1
 
 servers:
-  - url: https://api.traderjoexyz.com/v1
-    description: Production
+    - url: https://api.traderjoexyz.com/v1
+      description: Production
 
 paths:
-  /ping:
-    get:
-      summary: Health check
-      responses:
-        '200':
-          description: OK
-          content:
-            text/plain:
-              schema:
-                type: string
-                example: Pong
-  # /supply:
-  # /price:
-  # /nft:
-  # /metrics:
-  
+    /ping:
+        get:
+            summary: Health check
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        text/plain:
+                            schema:
+                                type: string
+                                example: Pong
+    /supply/circulating:
+        get:
+            summary: Get circulating supply of JOE token
+            tags:
+                - supply
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /supply/circulating-adjusted:
+        get:
+            summary: Get adjusted circulating supply of JOE token
+            tags:
+                - supply
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /supply/total:
+        get:
+            summary: Get total supply of JOE token
+            tags:
+                - supply
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /supply/max:
+        get:
+            summary: Get maximum supply of JOE token
+            tags:
+                - supply
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /usd/{tokenAddress}:
+        get:
+            summary: Get USD rooted token price
+            tags:
+                - price
+            parameters:
+                - name: tokenAddress
+                  in: path
+                  required: true
+                  description: Token to get rate for
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+                '500':
+                    description: INTERNAL ERROR
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /avax/{tokenAddress}:
+        get:
+            summary: Get AVAX rooted token price
+            tags:
+                - price
+            parameters:
+                - name: tokenAddress
+                  in: path
+                  required: true
+                  description: Token to get rate for
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+                '500':
+                    description: INTERNAL ERROR
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /nft/hat/{id}:
+        get:
+            summary: Get Joe Hat NFT information
+            tags:
+                - nft
+            parameters:
+                - name: id
+                  in: path
+                  required: true
+                  description: NFT id to get
+                  schema:
+                      type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        $ref: '#/components/schemas/nft'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /lending/supply:
+        get:
+            summary: Get outstanding supply in Banker Joe
+            tags:
+                - bank
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /lending/borrow:
+        get:
+            summary: Get outstanding borrow in Banker Joe
+            tags:
+                - bank
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+
 components:
-  schemas:
-    address: 
-      type: string
-      example: 0xb794f5ea0ba39494ce839613fffba74279579268
-    status:
-      type: object
-      properties:
-        timestamp: 
-          type: string
-        error_code:
-          type: integer
-        error_message:
-          type: string
-  securitySchemes:
+    schemas:
+        address:
+            type: string
+            example: '0xb794f5ea0ba39494ce839613fffba74279579268'
+        status:
+            type: object
+            properties:
+                timestamp:
+                    type: string
+                    example: '1641341612759'
+                error_code:
+                    type: integer
+                    example: 400
+                error_message:
+                    type: string
+                    example: 'Error getting supply'
+                error_trace:
+                    type: string
+                    example: 'at Object.require.extensions.<computed> [as .ts] (D:\Documents\Development\crypto\traderjoe-api\node_modules\ts-node\src\index.ts:1374:12)'
+        nft:
+            type: object
+            properties:
+                id:
+                    type: string
+                external_url:
+                    type: string
+                    example: 'https://api.traderjoexyz.com/nft/hat/50912'
+                name:
+                    type: string
+                    example: 'Joe Hat NFT #50912'
+                description:
+                    type: string
+                    example: 'Redeemed a real HAT and burned 1 $HAT'
+                image:
+                    type: string
+                    example: 'https://ipfs.io/ipfs/4i12025h109r019nr019h2r0'
+    securitySchemes:
+        - api_key:
+              type: apiKey
+              name: api_key
+              in: header
+        - admin:
+              type: http
+              scheme: basic

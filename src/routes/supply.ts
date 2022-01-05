@@ -28,9 +28,9 @@ export class SupplyController {
 
     constructor() {
         this.hardRefreshInterval = setInterval(() => {})
-        this.circulatingSupply = BigNumber.from(0)
-        this.maxSupply = BigNumber.from(0)
-        this.totalSupply = BigNumber.from(0)
+        this.circulatingSupply = BigNumber.from('0')
+        this.maxSupply = BigNumber.from('0')
+        this.totalSupply = BigNumber.from('0')
     }
 
     async init() {
@@ -43,6 +43,7 @@ export class SupplyController {
         })
 
         this.hardRefreshInterval = setInterval(async () => {
+            console.log('In supply refresh')
             await this.resetMetrics()
         }, hardRefreshInterval)
     }
@@ -101,12 +102,13 @@ export class SupplyController {
     }
 
     protected async getCirculatingSupply() {
-        const teamTreasurySupply = await Promise.all(Address.TEAM_TREASURY_WALLETS.map(
-            (address) =>
+        const teamTreasurySupply = await Promise.all(
+            Address.TEAM_TREASURY_WALLETS.map((address) =>
                 JoeContract.balanceOf(address).then(
                     (balance: BigNumber) => balance
                 )
-        ))
+            )
+        )
         const totalSupply = await this.getTotalSupply()
         teamTreasurySupply.forEach((supply) => totalSupply.sub(supply))
         return totalSupply

@@ -1,35 +1,65 @@
-import { BigNumber, ethers } from 'ethers'
+import 'cross-fetch/polyfill'
+import { BigNumber } from 'ethers'
 import express from 'express'
-import { Address } from '../constants'
-
-import BankerJoeContractABI from '../../abi/BankerJoe.json'
+import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
 import { formatRes } from '../util/format_res'
+import { marketsQuery } from '../queries'
+import { utils } from 'ethers'
 
 const hardRefreshInterval = 60000
 
-const BankerJoeContract = new ethers.Contract(
-    Address.TOTALSUPPLYANDBORROW_ADDRESS,
-    BankerJoeContractABI
-)
+export interface Market {
+    totalSupply: string 
+    exchangeRate: string 
+    totalBorrows: string
+    underlyingPriceUSD: string  
+}
 
 export class BankerController {
+    private graphClient: ApolloClient<NormalizedCacheObject>
     private hardRefreshInterval: NodeJS.Timer
 
     private totalSupply: BigNumber
     private totalBorrow: BigNumber
 
-    constructor() {
+    constructor(lendingGraphUrl: string) {
+        this.graphClient = new ApolloClient<NormalizedCacheObject>({
+            uri: lendingGraphUrl,
+            cache: new InMemoryCache()
+        })
         this.hardRefreshInterval = setInterval(() => {})
         this.totalSupply = BigNumber.from("0")
         this.totalBorrow = BigNumber.from("0")
     }
 
     async init() {
+        await this.queryBalances()
         this.hardRefreshInterval = setInterval(async () => {
-            const supplyAndBorrow = await BankerJoeContract.getTotalSupplyAndTotalBorrow();
-            this.totalSupply = supplyAndBorrow[0]
-            this.totalBorrow = supplyAndBorrow[1]
+            await this.queryBalances()
         }, hardRefreshInterval)
+    }
+
+    async queryBalances() {
+        const {
+            data: { markets },
+        } = await this.graphClient.query({
+            query: marketsQuery
+        })
+
+        let tempTotalSupply = 0
+        let tempTotalBorrow = 0
+        markets.forEach((market: Market) => {
+            tempTotalSupply += Math.floor(
+                Number(market.totalSupply) * Number(market.exchangeRate) * Number(market.underlyingPriceUSD)
+            )
+
+            tempTotalBorrow += Math.floor(
+                Number(market.totalBorrows) * Number(market.underlyingPriceUSD)
+            )
+        })
+
+        this.totalSupply = BigNumber.from(tempTotalSupply)
+        this.totalBorrow = BigNumber.from(tempTotalBorrow)
     }
 
     get apiRouter() {
