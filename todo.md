@@ -4,3 +4,4 @@
 -   Add detailed logging
 -   Add rate limiting
 -   Add example responses for extremely easy documentation
+- Testnet configuration

@@ -15,9 +15,9 @@ export class MetricsController {
     private apr: BigNumber
     private apy: BigNumber
 
-    constructor(exchangeGraphUrl: string, refreshInterval: number) {
+    constructor(masterChefGraphUrl: string, refreshInterval: number) {
         this.graphClient = new ApolloClient<NormalizedCacheObject>({
-            uri: exchangeGraphUrl,
+            uri: masterChefGraphUrl,
             cache: new InMemoryCache()
         })
         this.refreshInterval = refreshInterval
@@ -60,6 +60,10 @@ export class MetricsController {
     }
 
     async getApr() {
+        
+    }
+
+    async getPool() {
 
     }
 
