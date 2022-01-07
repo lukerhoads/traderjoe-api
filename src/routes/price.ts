@@ -2,7 +2,6 @@ import express from 'express'
 import { getRandomProvider } from '../provider'
 import { Address, BigNumberMantissa } from '../constants'
 import { BigNumber, Contract, ethers } from 'ethers'
-import { decimalMultiplier } from '../util/decimal_multiplier'
 
 import JoeBarContractABI from '../../abi/JoeBar.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
@@ -46,11 +45,12 @@ export class PriceController {
     }
 
     async init() {
-        this.hardRefreshInterval = setInterval(() => {
-            // Idk what optimizations we can make, perhaps getting the most commonly used prices
+        await this.getAvaxPrice()
 
+        this.hardRefreshInterval = setInterval(async () => {
             // Set this to empty because these change often
             this.cachedPrices = {}
+            await this.getAvaxPrice()
         }, this.refreshInterval)
     }
 
@@ -125,17 +125,14 @@ export class PriceController {
             ),
             this.getReserves(
                 Address.WAVAX_ADDRESS,
-                Address.WAVAX_USDT_ADDRESS,
+                Address.USDT_ADDRESS,
                 Address.WAVAX_USDT_ADDRESS
             ),
         ])
 
-        const usdcPrice = reserves[0][1]
-            .mul(BigNumberMantissa)
-            .div(reserves[0][0])
-        const usdtPrice = reserves[1][1]
-            .mul(BigNumberMantissa)
-            .div(reserves[1][0])
+        const usdcPrice = reserves[0][1].mul(BigNumberMantissa).div(reserves[0][0])
+        const usdtPrice = reserves[1][1].mul(BigNumberMantissa).div(reserves[1][0])
+        
         const avaxPrice = usdcPrice.add(usdtPrice).div(BigNumber.from('2'))
         this.cachedPrices[Address.WAVAX_ADDRESS] = avaxPrice
         return avaxPrice
@@ -148,7 +145,6 @@ export class PriceController {
 
         const joeBalance = await JoeContract.balanceOf(Address.XJOE_ADDRESS)
         const totalSupply = await XJoeContract.totalSupply()
-        // Look into why mantissa is used here, after all it is divided out anyways
         const ratio = joeBalance.mul(BigNumberMantissa).div(totalSupply)
         const price = await this.getPrice(Address.JOE_ADDRESS, true)
         const parsedPrice = price.mul(ratio).div(BigNumberMantissa)
@@ -156,20 +152,25 @@ export class PriceController {
         return parsedPrice
     }
 
-    protected async getPrice(
+    public async getPrice(
         tokenAddress: string,
-        derived: boolean
+        derived: boolean // whether or not to compare against AVAX
     ): Promise<BigNumber> {
+        if (this.cachedPrices[tokenAddress] && tokenAddress !== Address.WAVAX_ADDRESS) {
+            console.log("Cached price: ", this.cachedPrices[tokenAddress].toString())
+
+            return derived ? 
+                this.cachedPrices[tokenAddress] : 
+                this.cachedPrices[tokenAddress].div(BigNumberMantissa)
+                    .mul(await this.getAvaxPrice())
+        }
+
         if (tokenAddress === Address.WAVAX_ADDRESS) {
-            return await this.getAvaxPrice()
+            return this.getAvaxPrice()
         }
 
         if (tokenAddress === Address.XJOE_ADDRESS) {
-            return await this.getXJoePrice()
-        }
-
-        if (this.cachedPrices[tokenAddress]) {
-            return this.cachedPrices[tokenAddress]
+            return this.getXJoePrice()
         }
 
         const pairAddress = await this.getPair(tokenAddress)
@@ -179,18 +180,20 @@ export class PriceController {
             )
         }
 
+        // Gets price in AVAX
         const reserve = await this.getReserves(
             Address.WAVAX_ADDRESS,
             tokenAddress,
             pairAddress
         )
-        const price = reserve[0].mul(BigNumberMantissa).div(reserve[1])
-        this.cachedPrices[tokenAddress] = price
-        return derived
-            ? price
-            : this.cachedPrices[Address.WAVAX_ADDRESS]
-                  .mul(this.cachedPrices[tokenAddress])
-                  .div(BigNumberMantissa)
+
+        // Gets price in AVAX
+        const derivedPrice = reserve[0].mul(BigNumberMantissa).div(reserve[1])
+        this.cachedPrices[tokenAddress] = derivedPrice
+        if (derived) return derivedPrice
+        const avaxPrice = await this.getAvaxPrice()
+        const price = derivedPrice.div(BigNumberMantissa).mul(avaxPrice)
+        return price
     }
 
     protected async getReserves(
@@ -203,14 +206,27 @@ export class PriceController {
             this.getDecimals(token1Address),
         ])
 
+        // Fix code quality here
+        let token0BalanceMultiplier = BigNumber.from("0")
+        let token1BalanceMultiplier = BigNumber.from("0")
+
+        if (decimals[0].toString() !== decimals[1].toString()) {
+            if (decimals[0] > decimals[1]) {
+                token1BalanceMultiplier = BigNumber.from(decimals[0] - decimals[1])
+            } else {
+                token0BalanceMultiplier = BigNumber.from(decimals[1] - decimals[0])
+            }
+        }
+
         const token0Contract = this.getContract(token0Address)
         const token0Balance = await token0Contract.balanceOf(pairAddress)
         const token1Contract = this.getContract(token1Address)
         const token1Balance = await token1Contract.balanceOf(pairAddress)
 
+        const bn10 = BigNumber.from("10")
         return [
-            token0Balance.mul(decimalMultiplier(decimals[0])),
-            token1Balance.mul(decimalMultiplier(decimals[1])),
+            token0Balance.mul(bn10.pow(token0BalanceMultiplier)),
+            token1Balance.mul(bn10.pow(token1BalanceMultiplier)),
         ]
     }
 

@@ -30,4 +30,6 @@ export namespace Address {
         '0x381f39231576f52185EDE4b670bc39e9FF2Aab96', // Investor wallet
         '0xD858eBAa943b4C2fb06BA0Ba8920A132fd2410eE', // Multi-sig wallet
     ]
+
+    export const JOETROLLER_ADDRESS = "0xdc13687554205E5b89Ac783db14bb5bba4A1eDaC" // proxy
 }
