@@ -13,6 +13,7 @@ export interface OpConfig {
     priceRefreshTimeout: number 
     bankRefreshTimeout: number
     metricsRefreshTimeout: number
+    poolRefreshTimeout: number
 }
 
 const opConfig: OpConfig = {
@@ -25,6 +26,7 @@ const opConfig: OpConfig = {
     priceRefreshTimeout: 60000,
     bankRefreshTimeout: 60000,
     metricsRefreshTimeout: 60000,
+    poolRefreshTimeout: 60000,
 }
 
 export type AppConfig = OpConfig & {
