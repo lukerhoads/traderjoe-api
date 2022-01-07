@@ -50,15 +50,7 @@ export class MetricsController {
             this.getTvl(),
         ])
 
-<<<<<<< HEAD
         this.tvl = tvl 
-=======
-        console.log(tvl.toString())
-
-        // this.tvl = tvl 
-        // this.apr = apr
-        // this.apy = apy
->>>>>>> a785d70d7587966aaa270204438cc70c873518a6
     }
 
     async getTvl() {
@@ -104,17 +96,6 @@ export class MetricsController {
         router.get('/tvl', async (req, res, next) => {
             res.send(formatRes(this.tvl.toString()))
         })
-<<<<<<< HEAD
-=======
-
-        router.get('/apr', async (req, res, next) => {
-            res.send(formatRes(this.apr.toString()))
-        })
-
-        router.get('/apy', async (req, res, next) => {
-            res.send(formatRes(this.apy.toString()))
-        })
->>>>>>> a785d70d7587966aaa270204438cc70c873518a6
 
         return router
     }
