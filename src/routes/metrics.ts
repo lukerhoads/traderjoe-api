@@ -60,7 +60,7 @@ export class MetricsController {
             this.getTvl(),
         ])
 
-        this.tvl = tvl
+        this.tvl = tvl 
     }
 
     async getTvl() {
