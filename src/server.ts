@@ -11,6 +11,8 @@ import { BankerController } from './routes/banker'
 import { MetricsController } from './routes/metrics'
 import YAML from 'yamljs'
 import { formatRes } from './util/format_res'
+import { PoolController } from './routes/pool'
+import { FarmController } from './routes/farm'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -68,12 +70,22 @@ export class Server {
         versionRouter.use('/nft', nftController.apiRouter)
         this.controllers.push(nftController)
 
+        const poolController = new PoolController(this.config.config.lendingGraphUrl, this.config.config.poolRefreshTimeout)
+        await poolController.init()
+        versionRouter.use('/pools', poolController.apiRouter)
+        this.controllers.push(poolController)
+
+        const farmController = new FarmController(this.config.config.lendingGraphUrl, this.config.config.poolRefreshTimeout)
+        await farmController.init()
+        versionRouter.use('/farms', farmController.apiRouter)
+        this.controllers.push(farmController)
+
         const bankerController = new BankerController(
             this.config.config.lendingGraphUrl,
             this.config.config.bankRefreshTimeout
         )
         await bankerController.init()
-        versionRouter.use('/lending', bankerController.apiRouter)
+        versionRouter.use('/markets', bankerController.apiRouter)
         this.controllers.push(bankerController)
 
         const metricsController = new MetricsController(

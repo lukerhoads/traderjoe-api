@@ -33,13 +33,13 @@ export class BankerController {
     }
 
     async init() {
-        await this.queryBalances()
+        await this.resetTotals()
         this.hardRefreshInterval = setInterval(async () => {
-            await this.queryBalances()
+            await this.resetTotals()
         }, this.refreshInterval)
     }
 
-    async queryBalances() {
+    async resetTotals() {
         const {
             data: { markets },
         } = await this.graphClient.query({
@@ -62,15 +62,66 @@ export class BankerController {
         this.totalBorrow = BigNumber.from(tempTotalBorrow)
     }
 
+    async getSupplyByMarket(token: string) {
+        
+    }
+
+    async getBorrowByMarket(token: string) {
+
+    }
+
+    async getSupplyApyByMarket(token: string) {
+
+    }
+
+    async getBorrowApyByMarket(token: string) {
+
+    }
+
     get apiRouter() {
         const router = express.Router()
 
+        // Total supply and borrow across pools
         router.get('/supply', async (req, res, next) => {
             res.send(formatRes(this.totalSupply.toString()))
         })
 
         router.get('/borrow', async (req, res, next) => {
             res.send(formatRes(this.totalBorrow.toString()))
+        })
+
+        // Total supply and borrow across one pool
+        router.get('/supply/:token', async (req, res, next) => {
+            const token = req.params.token
+            res.send(formatRes(this.getSupplyByMarket(token)))
+        })
+
+        router.get('/borrow/:token', async (req, res, next) => {
+            const token = req.params.token
+            res.send(formatRes(this.getBorrowByMarket(token)))
+        })
+
+        router.get('/supply/:token/apy', async (req, res, next) => {
+            const token = req.params.token
+            res.send(formatRes(this.getSupplyApyByMarket(token)))
+        })
+
+        router.get('/borrow/:token/apy', async (req, res, next) => {
+            const token = req.params.token
+            res.send(formatRes(this.getBorrowApyByMarket(token)))
+        })
+
+        // User rewards
+        router.get('/:userId/supply', async (req, res, next) => {
+        })
+
+        router.get('/:userId/borrow', async (req, res, next) => {
+        })
+
+        router.get('/:userId/net', async (req, res, next) => {
+        })
+
+        router.get('/:userId/rewards', async (req, res, next) => {
         })
 
         return router

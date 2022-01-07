@@ -26,8 +26,6 @@ export class MetricsController {
     private hardRefreshInterval: NodeJS.Timer
 
     private tvl: BigNumber
-    private apr: BigNumber
-    private apy: BigNumber
 
     constructor(
         priceController: PriceController,
@@ -47,8 +45,6 @@ export class MetricsController {
         this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
         this.tvl = BigNumber.from('0')
-        this.apr = BigNumber.from('0')
-        this.apy = BigNumber.from('0')
     }
 
     async init() {
@@ -64,11 +60,7 @@ export class MetricsController {
             this.getTvl(),
         ])
 
-        const topPairAddresses = await this.topPairAddresses()
-        // console.log(tvl.toString())
-        await this.getPoolApr(topPairAddresses[topPairAddresses.length - 1])
-
-        this.tvl = tvl 
+        this.tvl = tvl
     }
 
     async getTvl() {
@@ -165,32 +157,6 @@ export class MetricsController {
 
         router.get('/tvl', async (req, res, next) => {
             res.send(formatRes(this.tvl.toString()))
-        })
-
-        // Query parameter of time period
-        router.get('/apr/pool/:pairAddress', async (req, res, next) => {
-            const pairAddress = req.params.pairAddress
-            const timePeriod = req.query.period as TimePeriod
-            if (!timePeriod) {
-                next("Time period not valid")
-            }
-
-            const apr = await this.getPoolApr(pairAddress, timePeriod)
-            res.send(formatRes(apr.toString()))
-        })
-
-        router.get('/apr/farm', async (req, res, next) => {
-            const timePeriod = req.query.period 
-        })
-
-        router.get('/apr/market/:token', async (req, res, next) => {
-            const token = req.params.token
-            const timePeriod = req.query.period 
-        })
-
-        router.get('/apy/market/:token', async (req, res, next) => {
-            const token = req.params.token
-            const timePeriod = req.query.period 
         })
 
         return router
