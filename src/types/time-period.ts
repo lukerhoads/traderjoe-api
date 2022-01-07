@@ -1,0 +1,1 @@
+export type TimePeriod = "1s" | "1h" | "1d" | "1m" | "1y"

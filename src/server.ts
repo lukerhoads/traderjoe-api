@@ -76,7 +76,12 @@ export class Server {
         versionRouter.use('/lending', bankerController.apiRouter)
         this.controllers.push(bankerController)
 
-        const metricsController = new MetricsController(priceController, this.config.config.exchangeGraphUrl, this.config.config.metricsRefreshTimeout)
+        const metricsController = new MetricsController(
+            priceController, 
+            this.config.config.exchangeGraphUrl,
+            this.config.config.masterChefGraphUrl, 
+            this.config.config.metricsRefreshTimeout
+        )
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
         this.controllers.push(metricsController)
