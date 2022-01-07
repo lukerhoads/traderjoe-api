@@ -14,3 +14,24 @@ export const getTvlQuery = async (factoriesName = "factories", tvlName = "liquid
         }
     `
 }
+
+export const poolByPair = (pair: string) => {
+    return gql`
+        {
+            pools(where: { pair: ${pair} }, first: 5, orderBy: userCount, orderDirection:desc) {
+                id
+                pair
+                allocPoint
+                lastRewardTimestamp
+                accJoePerShare
+                balance
+                userCount
+                owner {
+                    id
+                    joePerSec
+                    totalAllocPoint
+                }
+                timestamp
+            }
+        }`
+}
