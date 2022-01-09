@@ -1,13 +1,6 @@
 import express from 'express'
 import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
 
-export interface Market {
-    totalSupply: string 
-    exchangeRate: string 
-    totalBorrows: string
-    underlyingPriceUSD: string  
-}
-
 export class FarmController {
     private graphClient: ApolloClient<NormalizedCacheObject>
 

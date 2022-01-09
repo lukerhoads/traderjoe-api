@@ -2,7 +2,7 @@ import { BigNumber, ethers } from 'ethers'
 import express from 'express'
 import { getRandomProvider } from '../provider'
 import { Address, BigNumberMantissa } from '../constants'
-import { formatRes } from '../util/format_res'
+import { formatRes } from '../util'
 
 import JoeContractABI from '../../abi/JoeToken.json'
 

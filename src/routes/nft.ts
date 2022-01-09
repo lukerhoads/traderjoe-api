@@ -1,5 +1,5 @@
 import express from 'express'
-import { formatRes } from '../util/format_res'
+import { formatRes } from '../util'
 
 export class NFTController {
     constructor() {}

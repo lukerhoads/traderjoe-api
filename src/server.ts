@@ -1,18 +1,12 @@
+import 'cross-fetch/polyfill'
 import * as http from 'http'
 import express, { Request, Response, NextFunction } from 'express'
 import * as bodyParser from 'body-parser'
 import swaggerUi from 'swagger-ui-express'
-import { SupplyController } from './routes/supply'
 import Config from './config'
-import { Controller } from './routes/controller'
-import { PriceController } from './routes/price'
-import { NFTController } from './routes/nft'
-import { BankerController } from './routes/banker'
-import { MetricsController } from './routes/metrics'
 import YAML from 'yamljs'
-import { formatRes } from './util/format_res'
-import { PoolController } from './routes/pool'
-import { FarmController } from './routes/farm'
+import { formatRes } from './util/format-res'
+import { PoolController, FarmController, SupplyController, Controller, PriceController, NFTController, BankerController, MetricsController } from './routes'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -70,7 +64,12 @@ export class Server {
         versionRouter.use('/nft', nftController.apiRouter)
         this.controllers.push(nftController)
 
-        const poolController = new PoolController(this.config.config.lendingGraphUrl, this.config.config.poolRefreshTimeout)
+        const poolController = new PoolController(
+            priceController,
+            this.config.config.masterChefGraphUrl,
+            this.config.config.exchangeGraphUrl, 
+            this.config.config.poolRefreshTimeout
+        )
         await poolController.init()
         versionRouter.use('/pools', poolController.apiRouter)
         this.controllers.push(poolController)
@@ -81,7 +80,7 @@ export class Server {
         this.controllers.push(farmController)
 
         const bankerController = new BankerController(
-            this.config.config.lendingGraphUrl,
+            priceController,
             this.config.config.bankRefreshTimeout
         )
         await bankerController.init()
@@ -91,7 +90,6 @@ export class Server {
         const metricsController = new MetricsController(
             priceController, 
             this.config.config.exchangeGraphUrl,
-            this.config.config.masterChefGraphUrl, 
             this.config.config.metricsRefreshTimeout
         )
         await metricsController.init()

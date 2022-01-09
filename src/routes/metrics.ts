@@ -1,15 +1,16 @@
 import { BigNumber, ethers } from 'ethers'
 import express from 'express'
 import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
-import { getTvlQuery, pairByAddress, poolByPair, poolsQuery } from '../queries/metrics'
-import { Address, BigNumberMantissa } from '../constants'
+import { getExchangeTvlQuery } from '../queries'
+import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
-import { formatRes } from '../util/format_res'
+import { formatRes } from '../util/format-res'
+import { PriceController } from './price'
+import { parseUnits } from '@ethersproject/units'
+import { getMantissaBigNumber, bnStringToDecimal } from '../util'
 
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
-import { PriceController } from './price'
-import { TimePeriod } from '../types/time-period'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -19,7 +20,6 @@ const JoetrollerContract = new ethers.Contract(
 
 export class MetricsController {
     private exchangeGraphClient: ApolloClient<NormalizedCacheObject>
-    private chefGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
 
     private refreshInterval: number
@@ -30,15 +30,10 @@ export class MetricsController {
     constructor(
         priceController: PriceController,
         exchangeGraphUrl: string, 
-        masterChefGraphUrl: string, 
         refreshInterval: number
     ) {
         this.exchangeGraphClient = new ApolloClient<NormalizedCacheObject>({
             uri: exchangeGraphUrl,
-            cache: new InMemoryCache()
-        })
-        this.chefGraphClient = new ApolloClient<NormalizedCacheObject>({
-            uri: masterChefGraphUrl,
             cache: new InMemoryCache()
         })
         this.priceController = priceController
@@ -50,9 +45,21 @@ export class MetricsController {
     async init() {
         // Setup HARD subscriptions to avoid hard refreshes
         await this.resetMetrics()
+
         this.hardRefreshInterval = setInterval(async () => {
             await this.resetMetrics()
         }, this.refreshInterval)
+    }
+
+    get apiRouter() {
+        const router = express.Router()
+
+        router.get('/tvl', async (req, res, next) => {
+            const tvlString = this.tvl.toString()
+            res.send(formatRes(bnStringToDecimal(tvlString, 18)))
+        })
+
+        return router
     }
 
     async resetMetrics() {
@@ -63,103 +70,45 @@ export class MetricsController {
         this.tvl = tvl 
     }
 
+    // Adds exchange and bank TVL
     async getTvl() {
-        // Swap and Bank tvl
         const {
             data: { factories }
         } = await this.exchangeGraphClient.query({
-            query: await getTvlQuery()
+            query: getExchangeTvlQuery
         })
 
-        const exchangeTvl = BigNumber.from(Math.floor(Number(factories[0].liquidityUSD)))
+        const split = factories[0].liquidityUSD.split('.')
+        const divideExp = split[1].length - 18
+        const bnDivisor = getMantissaBigNumber(divideExp)
+        const exchangeTvl = parseUnits(factories[0].liquidityUSD, split[1].length).div(bnDivisor)
         const markets = await JoetrollerContract.getAllMarkets()
         const jTokenContract = new ethers.Contract(
             markets[0],
             JTokenABI,
             getRandomProvider()
         )
-        const totalCash = BigNumber.from("0")
-        await Promise.all(markets.map(async (market: string, index: number) => {
-            if (index > 0) {
-                return
-            }
-
+        // const locked = BigNumber.from("0")
+        const totalSupplies = await Promise.all(markets.map(async (market: string) => {
             const customContract = jTokenContract.attach(market)
-            const cash = await customContract.getCash()
             const underlying = await customContract.underlying()
-            // Get price another way
-            const price = await this.priceController.getPrice(underlying, false)
-            const usdPrice = cash.div(BigNumberMantissa).mul(price) // mul price
-            totalCash.add(usdPrice)
+            const jTokenTotalSupply = await customContract.totalSupply()
+            const exchangeRate = await customContract.exchangeRateStored()
+            const underlyingPrice = await this.priceController.getPrice(underlying, false)
+            
+            const divideExp = (27 + exchangeRate.toString().length) - 18
+            const divisor = getMantissaBigNumber(divideExp)
+            const totalSupply = jTokenTotalSupply.mul(exchangeRate).mul(underlyingPrice)
+            const totalSupplyConv = totalSupply.div(divisor)
+            return totalSupplyConv
         }))
 
-        return exchangeTvl.add(totalCash)
-    }
-
-    async topPairAddresses() {
-        const {
-            data: { pools },
-        } = await this.chefGraphClient.query({
-            query: poolsQuery,
-        });
-
-        return pools.map((pool: { pair: string }) => pool.pair)
-    }
-
-    async getPoolApr(pairAddress: string, timePeriod: TimePeriod) {
-        const joePrice = await this.priceController.getPrice(Address.JOE_ADDRESS, false)
-
-        const {
-            data: { pools },
-        } = await this.chefGraphClient.query({
-            query: poolByPair,
-            variables: { pair: pairAddress }
-        })
-
-        const {
-            data: { pairs },
-        } = await this.exchangeGraphClient.query({
-            query: pairByAddress,
-            variables: { id: pairAddress }
-        })
-
-        const pool = pools[0]
-        const pair = pairs[0]
-
-        const balance = Number(pool.balance) / 1e18
-        const totalSupply = Number(pair.totalSupply) 
-        const reserveUSD = Number(pair.reserveUSD)
-        const allocPoint = Number(pool.allocPoint)
-        const totalAllocPoint = Number(pool.totalAllocPoint)
-        const joePerSec = Number(pool.owner.joePerSec)
-        console.log("joepersec ", joePerSec)
-        const balanceUSD = ((balance / totalSupply) * reserveUSD)
-        const rewardPerSec = ((allocPoint / totalAllocPoint) * joePerSec)
-        console.log("Reward per sec", rewardPerSec)
-
-        const roiPerSec = (rewardPerSec * joePrice.toNumber()) / balanceUSD
-        switch (timePeriod) {
-            case "1s": 
-                return roiPerSec
-            case "1h":
-                return roiPerSec * 3600
-            case "1d":
-                return roiPerSec * 3600 * 24
-            case "1m":
-                return roiPerSec * 3600 * 24 * 30
-            case "1y":
-                return roiPerSec * 3600 * 24 * 30 * 12
+        let marketTvl = BigNumber.from("0")
+        for (let i = 0; i < totalSupplies.length; i++) {
+            marketTvl = marketTvl.add(totalSupplies[i])
         }
-    }
 
-    get apiRouter() {
-        const router = express.Router()
-
-        router.get('/tvl', async (req, res, next) => {
-            res.send(formatRes(this.tvl.toString()))
-        })
-
-        return router
+        return exchangeTvl.add(marketTvl)
     }
 
     async close() {

@@ -6,7 +6,7 @@ import { BigNumber, Contract, ethers } from 'ethers'
 import JoeBarContractABI from '../../abi/JoeBar.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
 import ERC20 from '../../abi/ERC20.json'
-import { formatRes } from '../util/format_res'
+import { bnStringToDecimal, formatRes } from '../util'
 
 const JoeFactoryContract = new ethers.Contract(
     Address.JOE_FACTORY_ADDRESS,
@@ -59,26 +59,36 @@ export class PriceController {
 
         // Query param or part of url?
         router.get('/usd/:tokenAddress', async (req, res, next) => {
-            const tokenAddress = req.params.tokenAddress
-            const tokenPrice = await this.getPrice(tokenAddress, false)
-            res.send(formatRes(tokenPrice.toString()))
+            const tokenAddress = req.params.tokenAddress.toLowerCase()
+            try {
+                const tokenPrice = await this.getPrice(tokenAddress, false)
+                const tokenPriceString = tokenPrice.toString()
+                res.send(formatRes(bnStringToDecimal(tokenPriceString, 18)))
+            } catch (err) {
+                next(err)
+            }
         })
 
         router.get('/avax/:tokenAddress', async (req, res, next) => {
-            const tokenAddress = req.params.tokenAddress
-            const tokenPrice = await this.getPrice(tokenAddress, true)
-            res.send(formatRes(tokenPrice.toString()))
+            const tokenAddress = req.params.tokenAddress.toLowerCase()
+            try {
+                const tokenPrice = await this.getPrice(tokenAddress, true)
+                const tokenPriceString = tokenPrice.toString()
+                res.send(formatRes(bnStringToDecimal(tokenPriceString, 18)))
+            } catch (err) {
+                next(err)
+            }
         })
 
         return router
     }
 
-    protected async getPair(tokenAddress: string): Promise<string | undefined> {
+    protected async getAvaxPair(tokenAddress: string): Promise<string | undefined> {
         if (this.pairs[tokenAddress]) {
             return this.pairs[tokenAddress]
         }
 
-        const pairAddress = await PriceController.getPairAddress(tokenAddress)
+        const pairAddress = await PriceController.getPairAddress(tokenAddress, Address.WAVAX_ADDRESS)
         if (!pairAddress || pairAddress === Address.ZERO_ADDRESS) {
             return undefined
         }
@@ -138,42 +148,43 @@ export class PriceController {
         return avaxPrice
     }
 
-    protected async getXJoePrice() {
+    protected async getXJoePrice(derived: boolean) {
         if (this.cachedPrices[Address.XJOE_ADDRESS]) {
             return this.cachedPrices[Address.WAVAX_ADDRESS]
         }
 
         const joeBalance = await JoeContract.balanceOf(Address.XJOE_ADDRESS)
         const totalSupply = await XJoeContract.totalSupply()
-        const ratio = joeBalance.mul(BigNumberMantissa).div(totalSupply)
-        const price = await this.getPrice(Address.JOE_ADDRESS, true)
-        const parsedPrice = price.mul(ratio).div(BigNumberMantissa)
-        this.cachedPrices[Address.XJOE_ADDRESS] = parsedPrice
-        return parsedPrice
+        const ratio = totalSupply.mul(BigNumberMantissa).div(joeBalance)
+        const joePrice = await this.getPrice(Address.JOE_ADDRESS, derived)
+        const xJoePrice = joePrice.mul(ratio).div(BigNumberMantissa)
+        this.cachedPrices[Address.XJOE_ADDRESS] = xJoePrice
+        return xJoePrice
     }
 
     public async getPrice(
         tokenAddress: string,
         derived: boolean // whether or not to compare against AVAX
     ): Promise<BigNumber> {
-        if (this.cachedPrices[tokenAddress] && tokenAddress !== Address.WAVAX_ADDRESS) {
-            console.log("Cached price: ", this.cachedPrices[tokenAddress].toString())
-
-            return derived ? 
-                this.cachedPrices[tokenAddress] : 
-                this.cachedPrices[tokenAddress].div(BigNumberMantissa)
-                    .mul(await this.getAvaxPrice())
-        }
-
+        tokenAddress = tokenAddress.toLowerCase()
         if (tokenAddress === Address.WAVAX_ADDRESS) {
             return this.getAvaxPrice()
         }
 
         if (tokenAddress === Address.XJOE_ADDRESS) {
-            return this.getXJoePrice()
+            return this.getXJoePrice(derived)
         }
 
-        const pairAddress = await this.getPair(tokenAddress)
+        if (this.cachedPrices[tokenAddress]) {
+            if (derived) {
+                return this.cachedPrices[tokenAddress]
+            }
+
+            const avaxPrice = await this.getAvaxPrice()
+            return this.cachedPrices[tokenAddress].mul(avaxPrice).div(BigNumberMantissa)
+        }
+
+        const pairAddress = await this.getAvaxPair(tokenAddress)
         if (!pairAddress) {
             throw new Error(
                 `Error given address ${tokenAddress}, isn't paired with WAVAX on TraderJoe`
@@ -187,12 +198,13 @@ export class PriceController {
             pairAddress
         )
 
-        // Gets price in AVAX
+        // Gets JOE price in AVAX
         const derivedPrice = reserve[0].mul(BigNumberMantissa).div(reserve[1])
         this.cachedPrices[tokenAddress] = derivedPrice
         if (derived) return derivedPrice
         const avaxPrice = await this.getAvaxPrice()
-        const price = derivedPrice.div(BigNumberMantissa).mul(avaxPrice)
+        // DerivedPrice is relative to AVAX, avaxPrice is amount of dollars in an avax
+        const price = derivedPrice.mul(avaxPrice).div(BigNumberMantissa)
         return price
     }
 
@@ -231,18 +243,19 @@ export class PriceController {
     }
 
     private static async getPairAddress(
-        tokenAddress: string
+        token0: string,
+        token1: string
     ): Promise<string | undefined> {
-        if (tokenAddress) {
-            if (tokenAddress > Address.WAVAX_ADDRESS) {
+        if (token0 && token1) {
+            if (token0 > token1) {
                 return JoeFactoryContract.getPair(
-                    tokenAddress,
-                    Address.WAVAX_ADDRESS
+                    token0,
+                    token1
                 )
             } else {
                 return JoeFactoryContract.getPair(
-                    Address.WAVAX_ADDRESS,
-                    tokenAddress
+                    token1,
+                    token0
                 )
             }
         }

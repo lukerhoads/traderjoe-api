@@ -5,10 +5,10 @@ import * as os from 'os'
 const main = async () => {
     const server = new Server()
     await server.init()
-
     server.start()
 }
 
+// Fix this forking stuff
 if (cluster.isPrimary) {
     const cores = os.cpus().length
     const availableCores = cores % 2 === 0 ? cores / 2 : Math.ceil(cores / 2)
