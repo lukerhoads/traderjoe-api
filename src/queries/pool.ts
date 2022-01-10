@@ -20,16 +20,6 @@ export const poolByPair = gql`
     }
 `
 
-export const pairByAddress = gql`
-    query pairById($id: String!) {
-        pairs (where: { id: $id }) {
-            id
-            totalSupply
-            reserveUSD
-        }
-    }
-`
-
 export const poolsQuery = gql`
     query poolsQuery(
         $first: Int! = 1000
@@ -57,3 +47,4 @@ export const poolsQuery = gql`
         }
     }
 `
+

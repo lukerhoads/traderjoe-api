@@ -6,7 +6,7 @@ import swaggerUi from 'swagger-ui-express'
 import Config from './config'
 import YAML from 'yamljs'
 import { formatRes } from './util/format-res'
-import { PoolController, FarmController, SupplyController, Controller, PriceController, NFTController, BankerController, MetricsController } from './routes'
+import { PoolController, PairController, SupplyController, Controller, PriceController, NFTController, BankerController, MetricsController } from './routes'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -28,17 +28,6 @@ export class Server {
         this.setupDocs()
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
-        this.app.use(
-            (err: Error, req: Request, res: Response, next: NextFunction) => {
-                res.status(500).send(
-                    formatRes(null, {
-                        errorCode: 500,
-                        errorMessage: err.toString(),
-                        errorTrace: err.stack,
-                    })
-                )
-            }
-        )
 
         this.app.get(
             '/ping',
@@ -64,19 +53,19 @@ export class Server {
         versionRouter.use('/nft', nftController.apiRouter)
         this.controllers.push(nftController)
 
-        const poolController = new PoolController(
+        const poolController = new PairController(
             priceController,
             this.config.config.masterChefGraphUrl,
             this.config.config.exchangeGraphUrl, 
             this.config.config.poolRefreshTimeout
         )
         await poolController.init()
-        versionRouter.use('/pools', poolController.apiRouter)
+        versionRouter.use('/pairs', poolController.apiRouter)
         this.controllers.push(poolController)
 
-        const farmController = new FarmController(this.config.config.lendingGraphUrl, this.config.config.poolRefreshTimeout)
+        const farmController = new PoolController(this.config.config.lendingGraphUrl, this.config.config.poolRefreshTimeout)
         await farmController.init()
-        versionRouter.use('/farms', farmController.apiRouter)
+        versionRouter.use('/pools', farmController.apiRouter)
         this.controllers.push(farmController)
 
         const bankerController = new BankerController(
@@ -95,6 +84,18 @@ export class Server {
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
         this.controllers.push(metricsController)
+
+        versionRouter.use(
+            (err: Error, req: Request, res: Response, next: NextFunction) => {
+                res.status(500).send(
+                    formatRes(null, {
+                        errorCode: 500,
+                        errorMessage: err.toString(),
+                        errorTrace: err.stack,
+                    })
+                )
+            }
+        )
 
         this.app.use(this.config.config.version, versionRouter)
     }

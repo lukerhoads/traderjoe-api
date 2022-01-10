@@ -4,7 +4,7 @@
 -   Add detailed logging
 -   Add rate limiting
 -   Add example responses for extremely easy documentation
-- Testnet configuration
+- Testnet configuration (fuji.api.com)
 - See (https://discord.com/channels/830990443457806347/918878314804957296/921776420542365706)
 
 # Required Information

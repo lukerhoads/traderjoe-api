@@ -23,7 +23,7 @@ const opConfig: OpConfig = {
         'https://api.thegraph.com/subgraphs/name/traderjoe-xyz/lending',
     exchangeGraphUrl: 'https://api.thegraph.com/subgraphs/name/traderjoe-xyz/exchange',
     masterChefGraphUrl: 'https://api.thegraph.com/subgraphs/name/traderjoe-xyz/masterchefv3',
-    
+
     supplyRefreshTimeout: 60000,
     priceRefreshTimeout: 60000,
     bankRefreshTimeout: 60000,

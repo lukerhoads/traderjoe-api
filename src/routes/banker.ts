@@ -153,7 +153,7 @@ export class BankerController {
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const supplyRatePerSecond = await customContract.supplyRatePerSecond()
-        let rate: BigNumber
+        let rate: BigNumber = BigNumber.from("0")
         switch (period) {
             case "1s": 
                 rate = supplyRatePerSecond
@@ -182,7 +182,7 @@ export class BankerController {
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const borrowRatePerSecond = await customContract.borrowRatePerSecond()
-        let rate: BigNumber
+        let rate: BigNumber = BigNumber.from("0")
         switch (period) {
             case "1s": 
                 rate = borrowRatePerSecond
@@ -236,7 +236,7 @@ export class BankerController {
     async getUserBorrow(user: string) {
         const assetsIn = await JoetrollerContract.getAssetsIn(user)
         if (!assetsIn) {
-            throw new Error("User has not supplied any assets")
+            throw new Error("User has not borrowed any assets")
         }
 
         const totalBorrowed = await Promise.all(assetsIn.map(async (asset: string) => {
@@ -266,7 +266,7 @@ export class BankerController {
     async getUserNetApy(user: string, period: TimePeriod = "1y") {
         const assetsIn = await JoetrollerContract.getAssetsIn(user)
         if (!assetsIn) {
-            throw new Error("User has not supplied any assets")
+            throw new Error("User is not invested in any markets")
         }
 
         let netApy = BigNumber.from("0")
