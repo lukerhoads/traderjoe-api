@@ -63,7 +63,7 @@ export class Server {
         versionRouter.use('/pairs', poolController.apiRouter)
         this.controllers.push(poolController)
 
-        const farmController = new PoolController(this.config.config.lendingGraphUrl, this.config.config.poolRefreshTimeout)
+        const farmController = new PoolController(priceController, this.config.config.exchangeGraphUrl, this.config.config.poolRefreshTimeout)
         await farmController.init()
         versionRouter.use('/pools', farmController.apiRouter)
         this.controllers.push(farmController)

@@ -45,6 +45,8 @@ export namespace Address {
 
     export const JOETROLLER_ADDRESS = "0xdc13687554205e5b89ac783db14bb5bba4a1edac" // proxy
     export const JAVAX_ADDRESS = "0xc22f01ddc8010ee05574028528614634684ec29e"
+
+    export const JOE_MASTER_CHEF_ADDRESS = "0x188bED1968b795d5c9022F6a0bb5931Ac4c18F00"
 }
 
 export namespace TestnetAddress {
