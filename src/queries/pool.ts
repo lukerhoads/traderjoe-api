@@ -15,6 +15,10 @@ export const poolById = gql`
                 joePerSec
                 totalAllocPoint
             }
+            rewarder {
+                rewardToken
+                tokenPerSec
+            }
             timestamp
         }
     }
@@ -34,6 +38,10 @@ export const poolByPair = gql`
                 id
                 joePerSec
                 totalAllocPoint
+            }
+            rewarder {
+                rewardToken
+                tokenPerSec
             }
             timestamp
         }

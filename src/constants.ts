@@ -47,6 +47,8 @@ export namespace Address {
     export const JAVAX_ADDRESS = "0xc22f01ddc8010ee05574028528614634684ec29e"
 
     export const JOE_MASTER_CHEF_ADDRESS = "0x188bED1968b795d5c9022F6a0bb5931Ac4c18F00"
+
+    export const GOHM_REWARD_ADDRESS = "0x99Ad2A9A0d4A15d861C0b60c7df8965D1B3e18D8"
 }
 
 export namespace TestnetAddress {

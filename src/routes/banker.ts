@@ -9,6 +9,7 @@ import { getMantissaBigNumber, bnStringToDecimal, formatRes } from '../util'
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
 import ERC20ABI from '../../abi/ERC20.json'
+import { convertPeriod, secondsToPeriod } from '../util/apr-time-convert'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -147,28 +148,13 @@ export class BankerController {
             throw new Error("Invalid market address provided.")
         }
 
-        if (this.cachedMarketSupplyApy[marketAddress] && this.cachedMarketSupplyApy[marketAddress].period === period) {
-            return this.cachedMarketSupplyApy[marketAddress].rate
+        if (this.cachedMarketSupplyApy[marketAddress]) {
+            return convertPeriod(this.cachedMarketSupplyApy[marketAddress], period)
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const supplyRatePerSecond = await customContract.supplyRatePerSecond()
-        let rate = BigNumber.from("0")
-        switch (period) {
-            case "1s": 
-                rate = supplyRatePerSecond
-            case "1m":
-                rate = supplyRatePerSecond.mul(60)
-            case "1h":
-                rate = supplyRatePerSecond.mul(3600)
-            case "1d":
-                rate = supplyRatePerSecond.mul(3600 * 24)
-            case "1m":
-                rate = supplyRatePerSecond.mul(3600 * 24 * 30)
-            case "1y":
-                rate = supplyRatePerSecond.mul(3600 * 24 * 30 * 12)
-        }
-
+        let rate = secondsToPeriod(supplyRatePerSecond, period)
         this.cachedMarketSupplyApy[marketAddress] = {period, rate}
         return rate
     }
@@ -178,26 +164,13 @@ export class BankerController {
             throw new Error("Invalid market address provided.")
         }
 
-        if (this.cachedMarketSupplyApy[marketAddress] && this.cachedMarketSupplyApy[marketAddress].period === period) {
-            return this.cachedMarketSupplyApy[marketAddress].rate
+        if (this.cachedMarketSupplyApy[marketAddress]) {
+            return convertPeriod(this.cachedMarketSupplyApy[marketAddress], period)
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const borrowRatePerSecond = await customContract.borrowRatePerSecond()
-        let rate: BigNumber = BigNumber.from("0")
-        switch (period) {
-            case "1s": 
-                rate = borrowRatePerSecond
-            case "1h":
-                rate = borrowRatePerSecond.mul(3600)
-            case "1d":
-                rate = borrowRatePerSecond.mul(3600 * 24)
-            case "1m":
-                rate = borrowRatePerSecond.mul(3600 * 24 * 30)
-            case "1y":
-                rate = borrowRatePerSecond.mul(3600 * 24 * 30 * 12)
-        }
-
+        let rate = secondsToPeriod(borrowRatePerSecond, period)
         this.cachedMarketBorrowApy[marketAddress] = {period: period, rate}
         return rate
     }
@@ -271,7 +244,6 @@ export class BankerController {
             throw new Error("User is not invested in any markets")
         }
 
-        let netApy = BigNumber.from("0")
         const allApys = await Promise.all(assetsIn.map(async (asset: string) => {
             const customContract = this.jTokenContract.attach(asset)
             const accountSnapshot = await customContract.getAccountSnapshot(user)
@@ -289,6 +261,11 @@ export class BankerController {
 
             return netApy
         }))
+
+        let netApy = BigNumber.from("0")
+        for (let i = 0; i < allApys.length; i++) {
+            netApy = netApy.add(allApys[i])
+        }
 
         this.cachedUserNetApy[user] = netApy
         return netApy
