@@ -16,7 +16,7 @@ const JoetrollerContract = new ethers.Contract(
     getRandomProvider()
 )
 
-export interface PeriodApy {
+export interface PeriodRate {
     period: TimePeriod
     rate: BigNumber
 }
@@ -40,8 +40,8 @@ export class BankerController {
     private cachedUserSupply: { [address: string]: BigNumber }
     private cachedUserBorrow: { [address: string]: BigNumber }
 
-    private cachedMarketSupplyApy: { [address: string]: PeriodApy }
-    private cachedMarketBorrowApy: { [address: string]: PeriodApy }
+    private cachedMarketSupplyApy: { [address: string]: PeriodRate }
+    private cachedMarketBorrowApy: { [address: string]: PeriodRate }
 
     private cachedUserNetApy: { [address: string]: BigNumber }
 
@@ -153,10 +153,12 @@ export class BankerController {
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const supplyRatePerSecond = await customContract.supplyRatePerSecond()
-        let rate: BigNumber = BigNumber.from("0")
+        let rate = BigNumber.from("0")
         switch (period) {
             case "1s": 
                 rate = supplyRatePerSecond
+            case "1m":
+                rate = supplyRatePerSecond.mul(60)
             case "1h":
                 rate = supplyRatePerSecond.mul(3600)
             case "1d":
@@ -167,7 +169,7 @@ export class BankerController {
                 rate = supplyRatePerSecond.mul(3600 * 24 * 30 * 12)
         }
 
-        this.cachedMarketSupplyApy[marketAddress] = {period: period, rate}
+        this.cachedMarketSupplyApy[marketAddress] = {period, rate}
         return rate
     }
 

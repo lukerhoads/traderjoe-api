@@ -53,20 +53,25 @@ export class Server {
         versionRouter.use('/nft', nftController.apiRouter)
         this.controllers.push(nftController)
 
-        const poolController = new PairController(
+        const pairController = new PairController(
             priceController,
             this.config.config.masterChefGraphUrl,
             this.config.config.exchangeGraphUrl, 
             this.config.config.poolRefreshTimeout
         )
-        await poolController.init()
-        versionRouter.use('/pairs', poolController.apiRouter)
-        this.controllers.push(poolController)
+        await pairController.init()
+        versionRouter.use('/pairs', pairController.apiRouter)
+        this.controllers.push(pairController)
 
-        const farmController = new PoolController(priceController, this.config.config.exchangeGraphUrl, this.config.config.poolRefreshTimeout)
-        await farmController.init()
-        versionRouter.use('/pools', farmController.apiRouter)
-        this.controllers.push(farmController)
+        const poolController = new PoolController(
+            priceController, 
+            this.config.config.masterChefGraphUrl, 
+            this.config.config.exchangeGraphUrl, 
+            this.config.config.poolRefreshTimeout
+        )
+        await poolController.init()
+        versionRouter.use('/pools', poolController.apiRouter)
+        this.controllers.push(poolController)
 
         const bankerController = new BankerController(
             priceController,

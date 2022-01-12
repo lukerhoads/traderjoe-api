@@ -2,7 +2,7 @@ import gql from "graphql-tag"
 
 export const poolById = gql`
     query poolByIdQuery($id: String!) {
-        pools (id: $id) {
+        pools (where: { id: $id }) {
             id
             pair
             allocPoint
