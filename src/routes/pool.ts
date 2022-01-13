@@ -39,6 +39,7 @@ export class PoolController {
 
     private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
+    private temporalRefreshInterval: NodeJS.Timer
 
     private cachedPoolApr: { [address: string]: PeriodRate }
     private cachedPoolBonusApr: { [address: string]: PeriodRate }
@@ -67,6 +68,7 @@ export class PoolController {
         )
         this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
+        this.temporalRefreshInterval = setInterval(() => {})
         this.cachedPoolApr = {}
         this.cachedPoolBonusApr = {}
         this.cachedPoolTvl = {}
@@ -74,12 +76,21 @@ export class PoolController {
 
     async init() {
         this.hardRefreshInterval = setInterval(async () => {
-
+            this.cachedPoolTvl = {}
         }, this.refreshInterval)
+
+        this.temporalRefreshInterval = setInterval(async () => {
+            this.cachedPoolApr = {}
+            this.cachedPoolBonusApr = {}
+        }, 60000)
     }
 
     async getPoolByPair(pair: string) {
         // Find how to get this through masterchef
+
+        // To do this, you will need to get the pair LP token, get token0 and token1 from that, and plug those into
+        // JoeFactory to get the pair address
+        // Probably avoid this for speed issues but generally this is how to make this completely contract dependent
         const { data: pools } = await this.masterChefGraphClient.query({
             query: poolByPair,
             variables: { pair },
@@ -162,22 +173,7 @@ export class PoolController {
         // Get it in dollar amounts and divide by balanceUSD to get percentage
         const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD).div(BigNumberMantissa)
 
-        let rate = BigNumber.from("0")
-        switch (period) {
-            case "1s":
-                return roiPerSec
-            case "1m":
-                return roiPerSec.mul(60)
-            case "1h":
-                return roiPerSec.mul(3600)
-            case "1d":
-                return roiPerSec.mul(3600 * 24)
-            case "1m":
-                return roiPerSec.mul(3600 * 24 * 30)
-            case "1y":
-                return roiPerSec.mul(3600 * 24 * 30 * 12)
-        }
-
+        let rate = secondsToPeriod(roiPerSec, period)
         this.cachedPoolApr[poolId] = {period, rate}
         return rate
     }
@@ -192,7 +188,7 @@ export class PoolController {
 
     async getPoolTvl(poolId: string) {
         if (this.cachedPoolTvl[poolId]) {
-            return this.cachedPoolApr[poolId]
+            return this.cachedPoolTvl[poolId]
         }
 
         const pool = await this.getPoolById(poolId)
@@ -214,17 +210,14 @@ export class PoolController {
             return convertPeriod(this.cachedPoolBonusApr[poolId], period)
         }
 
-        // Need to get reward asset
         const poolInfo = await MasterChefContract.poolInfo(poolId)
-
         const rewarderAddress = poolInfo[4]
         
         const customRewarderContract = this.rewardContract.attach(rewarderAddress)
-
         const rewardToken = await customRewarderContract.rewardToken()
-
         const tokenPerSec = await customRewarderContract.tokenPerSec()
-        // Get its price 
+
+        // Get reward token price
         const rewardTokenPrice = await this.priceController.getPrice(rewardToken, false)
 
         // Get pool tvl, or balanceUSD

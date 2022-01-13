@@ -7,6 +7,7 @@ import Config from './config'
 import YAML from 'yamljs'
 import { formatRes } from './util/format-res'
 import { PoolController, PairController, SupplyController, Controller, PriceController, NFTController, BankerController, MetricsController } from './routes'
+import { AdminController } from './routes/admin/config'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -89,6 +90,11 @@ export class Server {
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
         this.controllers.push(metricsController)
+
+        const adminController = new AdminController()
+        await adminController.init()
+        versionRouter.use('/admin', adminController.apiRouter)
+        this.controllers.push(adminController)
 
         versionRouter.use(
             (err: Error, req: Request, res: Response, next: NextFunction) => {
