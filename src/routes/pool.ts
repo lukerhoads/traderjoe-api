@@ -42,11 +42,11 @@ export class PoolController {
     private hardRefreshInterval: NodeJS.Timer
     private temporalRefreshInterval: NodeJS.Timer
 
-    private cachedPoolApr: { [address: string]: PeriodRate }
+    private cachedPoolApr: { [address: string]: PeriodRate } // should we store everything as 1s?
     private cachedPoolBonusApr: { [address: string]: PeriodRate }
     private cachedPoolTvl: { [address: string]: BigNumber }
 
-    constructor(priceController: PriceController, masterChefGraphUrl: string, exchangeGraphUrl: string, refreshInterval: number) {
+    constructor(priceController: PriceController, masterChefGraphUrl: string, refreshInterval: number) {
         this.priceController = priceController
         this.masterChefGraphClient = new ApolloClient<NormalizedCacheObject>({
             uri: masterChefGraphUrl,
@@ -83,7 +83,7 @@ export class PoolController {
         this.temporalRefreshInterval = setInterval(async () => {
             this.cachedPoolApr = {}
             this.cachedPoolBonusApr = {}
-        }, 60000)
+        }, 2e7) // abt 6 hours
     }
 
     async getPoolByPair(pair: string) {
@@ -100,9 +100,7 @@ export class PoolController {
         return pools[0]
     }
 
-    // Only need pair
     async getPoolById(id: string) {
-        // Find how to get this through masterchef
         const { data: { pools } } = await this.masterChefGraphClient.query({
             query: poolById,
             variables: { id },
@@ -111,6 +109,7 @@ export class PoolController {
         return pools[0]
     }
 
+    // Gets pool pair (only pair) directly through contract. Most likely slower than GraphQL, but would switch this to completely contract dependent.
     async getPoolPairByIdContract(id: string) {
         const poolInfo = await MasterChefContract.poolInfo(id)
 
@@ -140,6 +139,9 @@ export class PoolController {
 
     async getPairLiquidity(pairAddress: string) {
         // Somehow validate that pairAddress is a valid pair
+
+        // Cache
+
         const customContract = this.pairContract.attach(pairAddress)
         const reserves = await customContract.getReserves()
 
@@ -163,7 +165,7 @@ export class PoolController {
 
     // mixing graphql with contracts, prefer to go either or because of consistency and optimization
     // Please revisit all of this in the optimization run
-    async getPoolApr(poolId: string, period: TimePeriod = "1mo") {
+    async getPoolApr(poolId: string, period: TimePeriod = "1y") {
         if (this.cachedPoolApr[poolId]) {
             if (this.cachedPoolApr[poolId].period != period) {
                 return convertPeriod(this.cachedPoolApr[poolId], period)
@@ -173,7 +175,6 @@ export class PoolController {
         }
 
         const joePrice = await this.priceController.getPrice(Address.JOE_ADDRESS, false)
-        const pool = await this.getPoolById(poolId)
 
         const totalAllocPoint = await MasterChefContract.totalAllocPoint()
         const joePerSec = await MasterChefContract.joePerSec()
@@ -181,15 +182,8 @@ export class PoolController {
 
         const allocPoint = poolInfo[3]
 
-        // TotalSupply and balance represents underlying LP token totalSupply and balance of
-        // MasterChef contract
-        const { totalSupply, balance } = await this.getPairTotalSupply(pool.pair)
-
-        // Reserve represents the liquidity of the underlying pair
-        const reserveUSD = await this.getPairLiquidity(pool.pair)
-
         // BalanceUSD represents the liquidity of the pool
-        const balanceUSD = balance.mul(reserveUSD).div(totalSupply)
+        const balanceUSD = await this.getPoolTvl(poolId)
 
         // Multiply joePerSec by allocPoint / totalAllocPoint ratio
         const rewardsPerSec = allocPoint.mul(joePerSec).div(totalAllocPoint)
@@ -217,6 +211,8 @@ export class PoolController {
 
         const pool = await this.getPoolById(poolId)
 
+        // TotalSupply and balance represents underlying LP token totalSupply and balance of
+        // MasterChef contract
         const { totalSupply, balance } = await this.getPairTotalSupply(pool.pair)
 
         // Reserve represents the liquidity of the underlying pair
@@ -229,9 +225,13 @@ export class PoolController {
         return balanceUSD
     }
 
-    async getPoolBonus(poolId: string, period: TimePeriod) {
+    async getPoolBonus(poolId: string, period: TimePeriod = "1y") {
         if (this.cachedPoolBonusApr[poolId]) {
-            return convertPeriod(this.cachedPoolBonusApr[poolId], period)
+            if (this.cachedPoolApr[poolId].period != period) {
+                return convertPeriod(this.cachedPoolApr[poolId], period)
+            }
+
+            return this.cachedPoolApr[poolId].rate
         }
 
         const poolInfo = await MasterChefContract.poolInfo(poolId)

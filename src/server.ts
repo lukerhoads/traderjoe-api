@@ -67,7 +67,6 @@ export class Server {
         const poolController = new PoolController(
             priceController, 
             this.config.config.masterChefGraphUrl, 
-            this.config.config.exchangeGraphUrl, 
             this.config.config.poolRefreshTimeout
         )
         await poolController.init()

@@ -12,7 +12,7 @@ function getAddress() {
     return process.env.NETWORK === "mainnet" ? Address : TestnetAddress
 }
 
-export const FEE_RATE = 0.0025
+export const FEE_RATE = BigNumber.from("2500000000000000")
 
 export namespace Address {
     export const JOE_ADDRESS = '0x6e84a6216ea6dacc71ee8e6b0a5b7322eebc0fdd'

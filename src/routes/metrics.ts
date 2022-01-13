@@ -11,6 +11,7 @@ import { getMantissaBigNumber, bnStringToDecimal } from '../util'
 
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
+import { TimePeriod } from '../types'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -55,6 +56,12 @@ export class MetricsController {
         const router = express.Router()
 
         router.get('/tvl', async (req, res, next) => {
+            const tvlString = this.tvl.toString()
+            res.send(formatRes(bnStringToDecimal(tvlString, 18)))
+        })
+
+        router.get('/volume', async (req, res, next) => {
+            const period = req.query.period as TimePeriod
             const tvlString = this.tvl.toString()
             res.send(formatRes(bnStringToDecimal(tvlString, 18)))
         })

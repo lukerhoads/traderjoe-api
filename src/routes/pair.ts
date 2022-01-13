@@ -1,12 +1,12 @@
 import express from 'express'
 import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
-import { pairByAddress, pairTimeTravelQuery, pairTokenFieldsQuery, poolsQuery } from '../queries'
+import { pairByAddress, pairTimeTravelQuery, poolsQuery } from '../queries'
 import { PriceController } from './price'
 import { Address, BigNumberMantissa, FEE_RATE } from '../constants'
 import { TimePeriod } from '../types'
 import { Contract, ethers } from 'ethers'
 import { getRandomProvider } from '../provider'
-import { bnStringToDecimal, formatRes, getBlocks, getMantissaBigNumber } from '../util'
+import { bnStringToDecimal, formatRes, getBlocks, getMantissaBigNumber, stringToBn } from '../util'
 
 import JoePairABI from '../../abi/JoePair.json'
 import ERC20ABI from '../../abi/ERC20.json'
@@ -89,7 +89,8 @@ export class PairController {
         return token0Tvl.add(token1Tvl)
     }
 
-    async getPairVolume(pairAddress: string, period: TimePeriod = "1m") {
+    // Need to make this contract stuff
+    async getPairVolume(pairAddress: string, period: TimePeriod = "1d") {
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
@@ -115,43 +116,48 @@ export class PairController {
             fetchPolicy: "no-cache"
         })
 
-        // Convert to mantissa or something
         const volumeUSD = pair.volumeUSD === "0" ? pair.untrackedVolumeUSD : pair.volumeUSD
         const periodVolumeUSD = periodPair.volumeUSD === "0" ? periodPair.untrackedVolumeUSD : periodPair.volumeUSD
-        return volumeUSD - periodVolumeUSD // look into this
+
+        const volumeUSDBn = stringToBn(volumeUSD, 18)
+        const periodVolumeUSDBn = stringToBn(periodVolumeUSD, 18)
+
+        return volumeUSDBn.sub(periodVolumeUSDBn)
     }
 
-    async getPairFees(pairAddress: string, period: TimePeriod) {
+    async getPairFees(pairAddress: string, period: TimePeriod = "1d") {
         const pairVolume = await this.getPairVolume(pairAddress, period)
-        return pairVolume * FEE_RATE
+        return pairVolume.mul(FEE_RATE).div(BigNumberMantissa)
     }
 
     // These all depend on the period over which we are collecting data.
     // Perhaps add up to four months? This would make it more historically accurate but 
     // then again would not be future-proof because many pools were just getting started 
     // then
-    async getPairApr(pairAddress: string) {
-        const pairFees = await this.getPairFees(pairAddress, "1d")
+    async getPairApr(pairAddress: string, period: TimePeriod = "1d") {
+        // Move away from 1d hardcode
+        const pairFees = await this.getPairFees(pairAddress, period)
         const pairLiquidity = await this.getPairLiquidity(pairAddress)
-        const pairLiquidityNumber = Number(bnStringToDecimal(pairLiquidity.toString(), 18))
         // Scale factor is 12 right now, this means that
         // we only fetch one month fees right now (because Avalanche has not been live for over a year)
-        return pairFees * 365 / pairLiquidityNumber
+        // return pairFees.mul(365).div(pairLiquidityNumber)
+        return pairFees.mul(BigNumberMantissa).div(pairLiquidity)
     }
 
     // Testing out another method here (from analytics)
-    async getPairAprGraph(pairAddress: string) {
+    async getPairAprGraph(pairAddress: string, period: TimePeriod = "1d") {
+        // This is unnecessary, find how to optimize this with cache
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
                 id: pairAddress,
             }
         })
-        // console.log(pairData)
 
         const pair = pairData.pair
-        const oneDayFees = await this.getPairFees(pairAddress, "1d")
-        return (oneDayFees * 365) / Number(pair.reserveUSD)
+        const periodFees = await this.getPairFees(pairAddress, period)
+        const reserveUSD = stringToBn(pair.reserveUSD, 18)
+        return periodFees.mul(BigNumberMantissa).div(reserveUSD)
     }
 
     get apiRouter() {
@@ -193,10 +199,10 @@ export class PairController {
 
         router.get('/:pairAddress/apr', async (req, res, next) => {
             const pairAddress = req.params.pairAddress.toLowerCase()
+            const period = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPairAprGraph(pairAddress)
-                const poolAprString = poolApr.toString()
-                res.send(formatRes(poolAprString))
+                const poolApr = await this.getPairAprGraph(pairAddress, period)
+                res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)
             }

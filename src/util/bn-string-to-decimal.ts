@@ -51,7 +51,9 @@ export const stringToBn = (number: string, power?: number) => {
         }
     }
 
-    console.log(parts[0], parts[1])
-    const initialBigNum = BigNumber.from(parts[0]).mul(getMantissaBigNumber(localPower))
-    return initialBigNum.add(parts[1])
+    if (parts[1].length > localPower) {
+        parts[1] = parts[1].substring(0, localPower)
+    }
+
+    return BigNumber.from(parts[0].concat(parts[1])) // .mul(getMantissaBigNumber(localPower))
 }
