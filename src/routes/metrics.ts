@@ -1,6 +1,10 @@
 import { BigNumber, ethers } from 'ethers'
 import express from 'express'
-import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
+import {
+    ApolloClient,
+    InMemoryCache,
+    NormalizedCacheObject,
+} from '@apollo/client/core'
 import { getExchangeTvlQuery } from '../queries'
 import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
@@ -12,6 +16,7 @@ import { getMantissaBigNumber, bnStringToDecimal } from '../util'
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
 import { TimePeriod } from '../types'
+import { OpConfig } from '../config'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -20,36 +25,33 @@ const JoetrollerContract = new ethers.Contract(
 )
 
 export class MetricsController {
+    private config: OpConfig
+
     private exchangeGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
 
-    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
-    private tvl: BigNumber
+    private tvl: BigNumber = BigNumber.from('0')
 
-    constructor(
-        priceController: PriceController,
-        exchangeGraphUrl: string, 
-        refreshInterval: number
-    ) {
+    constructor(config: OpConfig, priceController: PriceController) {
+        this.config = config
         this.exchangeGraphClient = new ApolloClient<NormalizedCacheObject>({
-            uri: exchangeGraphUrl,
-            cache: new InMemoryCache()
+            uri: config.exchangeGraphUrl,
+            cache: new InMemoryCache(),
         })
         this.priceController = priceController
-        this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
-        this.tvl = BigNumber.from('0')
     }
 
+    // Event subscriptions
     async init() {
         // Setup HARD subscriptions to avoid hard refreshes
         await this.resetMetrics()
 
         this.hardRefreshInterval = setInterval(async () => {
             await this.resetMetrics()
-        }, this.refreshInterval)
+        }, this.config.metricsRefreshTimeout)
     }
 
     get apiRouter() {
@@ -60,35 +62,37 @@ export class MetricsController {
             res.send(formatRes(bnStringToDecimal(tvlString, 18)))
         })
 
+        // TODO
         router.get('/volume', async (req, res, next) => {
             const period = req.query.period as TimePeriod
-            const tvlString = this.tvl.toString()
-            res.send(formatRes(bnStringToDecimal(tvlString, 18)))
+            const volume = this.getVolume(period)
+            res.send(formatRes(bnStringToDecimal(volume.toString(), 18)))
         })
 
         return router
     }
 
     async resetMetrics() {
-        const [tvl] = await Promise.all([
-            this.getTvl(),
-        ])
+        const [tvl] = await Promise.all([this.getTvl()])
 
-        this.tvl = tvl 
+        this.tvl = tvl
     }
 
     // Adds exchange and bank TVL
     async getTvl() {
         const {
-            data: { factories }
+            data: { factories },
         } = await this.exchangeGraphClient.query({
-            query: getExchangeTvlQuery
+            query: getExchangeTvlQuery,
         })
 
         const split = factories[0].liquidityUSD.split('.')
         const divideExp = split[1].length - 18
         const bnDivisor = getMantissaBigNumber(divideExp)
-        const exchangeTvl = parseUnits(factories[0].liquidityUSD, split[1].length).div(bnDivisor)
+        const exchangeTvl = parseUnits(
+            factories[0].liquidityUSD,
+            split[1].length
+        ).div(bnDivisor)
         const markets = await JoetrollerContract.getAllMarkets()
         const jTokenContract = new ethers.Contract(
             markets[0],
@@ -96,26 +100,37 @@ export class MetricsController {
             getRandomProvider()
         )
         // const locked = BigNumber.from("0")
-        const totalSupplies = await Promise.all(markets.map(async (market: string) => {
-            const customContract = jTokenContract.attach(market)
-            const underlying = await customContract.underlying()
-            const jTokenTotalSupply = await customContract.totalSupply()
-            const exchangeRate = await customContract.exchangeRateStored()
-            const underlyingPrice = await this.priceController.getPrice(underlying, false)
-            
-            const divideExp = (27 + exchangeRate.toString().length) - 18
-            const divisor = getMantissaBigNumber(divideExp)
-            const totalSupply = jTokenTotalSupply.mul(exchangeRate).mul(underlyingPrice)
-            const totalSupplyConv = totalSupply.div(divisor)
-            return totalSupplyConv
-        }))
+        const totalSupplies = await Promise.all(
+            markets.map(async (market: string) => {
+                const customContract = jTokenContract.attach(market)
+                const underlying = await customContract.underlying()
+                const jTokenTotalSupply = await customContract.totalSupply()
+                const exchangeRate = await customContract.exchangeRateStored()
+                const underlyingPrice = await this.priceController.getPrice(
+                    underlying,
+                    false
+                )
 
-        let marketTvl = BigNumber.from("0")
+                const divideExp = 27 + exchangeRate.toString().length - 18
+                const divisor = getMantissaBigNumber(divideExp)
+                const totalSupply = jTokenTotalSupply
+                    .mul(exchangeRate)
+                    .mul(underlyingPrice)
+                const totalSupplyConv = totalSupply.div(divisor)
+                return totalSupplyConv
+            })
+        )
+
+        let marketTvl = BigNumber.from('0')
         for (let i = 0; i < totalSupplies.length; i++) {
             marketTvl = marketTvl.add(totalSupplies[i])
         }
 
         return exchangeTvl.add(marketTvl)
+    }
+
+    async getVolume(period: TimePeriod) {
+        return BigNumber.from('0')
     }
 
     async close() {

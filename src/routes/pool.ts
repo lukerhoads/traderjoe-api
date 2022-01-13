@@ -1,12 +1,22 @@
 import express from 'express'
-import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
+import {
+    ApolloClient,
+    InMemoryCache,
+    NormalizedCacheObject,
+} from '@apollo/client/core'
 import { BigNumber, Contract, ethers } from 'ethers'
 
-import { Address, BigNumberMantissa } from '../constants'
+import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
 import { poolById, poolByPair } from '../queries'
 import { PriceController } from './price'
-import { bnStringToDecimal, formatRes, getMantissaBigNumber, stringToBn,  convertPeriod, secondsToPeriod } from '../util'
+import {
+    bnStringToDecimal,
+    formatRes,
+    getMantissaBigNumber,
+    convertPeriod,
+    secondsToPeriod,
+} from '../util'
 import { TimePeriod } from '../types'
 import { PeriodRate } from './banker'
 
@@ -16,6 +26,7 @@ import ERC20ABI from '../../abi/ERC20.json'
 import RewarderABI from '../../abi/SimpleRewarder.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
 import JoeLPTokenABI from '../../abi/JoeLPToken.json'
+import { OpConfig } from '../config'
 
 const MasterChefContract = new ethers.Contract(
     Address.JOE_MASTER_CHEF_ADDRESS,
@@ -31,6 +42,8 @@ const JoeFactoryContract = new ethers.Contract(
 
 // Pool (or farm) controller. Where you stake your LP tokens
 export class PoolController {
+    private config: OpConfig
+
     // This masterchef stuff is still abstract to get from contracts
     private masterChefGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
@@ -38,19 +51,19 @@ export class PoolController {
     private tokenContract: Contract
     private rewardContract: Contract
 
-    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
     private temporalRefreshInterval: NodeJS.Timer
 
-    private cachedPoolApr: { [address: string]: PeriodRate } // should we store everything as 1s?
-    private cachedPoolBonusApr: { [address: string]: PeriodRate }
-    private cachedPoolTvl: { [address: string]: BigNumber }
+    private cachedPairLiquidity: { [address: string]: BigNumber } = {}
+    private cachedPoolApr: { [address: string]: PeriodRate } = {}
+    private cachedPoolBonusApr: { [address: string]: PeriodRate } = {}
+    private cachedPoolTvl: { [address: string]: BigNumber } = {}
 
-    constructor(priceController: PriceController, masterChefGraphUrl: string, refreshInterval: number) {
+    constructor(config: OpConfig, priceController: PriceController) {
         this.priceController = priceController
         this.masterChefGraphClient = new ApolloClient<NormalizedCacheObject>({
-            uri: masterChefGraphUrl,
-            cache: new InMemoryCache()
+            uri: config.masterChefGraphUrl,
+            cache: new InMemoryCache(),
         })
         this.pairContract = new ethers.Contract(
             Address.WAVAX_USDC_ADDRESS,
@@ -67,31 +80,24 @@ export class PoolController {
             RewarderABI,
             getRandomProvider()
         )
-        this.refreshInterval = refreshInterval
+        this.config = config
         this.hardRefreshInterval = setInterval(() => {})
         this.temporalRefreshInterval = setInterval(() => {})
-        this.cachedPoolApr = {}
-        this.cachedPoolBonusApr = {}
-        this.cachedPoolTvl = {}
     }
 
     async init() {
         this.hardRefreshInterval = setInterval(async () => {
             this.cachedPoolTvl = {}
-        }, this.refreshInterval)
+            this.cachedPairLiquidity = {}
+        }, this.config.poolRefreshTimeout)
 
         this.temporalRefreshInterval = setInterval(async () => {
             this.cachedPoolApr = {}
             this.cachedPoolBonusApr = {}
-        }, 2e7) // abt 6 hours
+        }, this.config.temporalRefreshTimeout)
     }
 
     async getPoolByPair(pair: string) {
-        // Find how to get this through masterchef
-
-        // To do this, you will need to get the pair LP token, get token0 and token1 from that, and plug those into
-        // JoeFactory to get the pair address
-        // Probably avoid this for speed issues but generally this is how to make this completely contract dependent
         const { data: pools } = await this.masterChefGraphClient.query({
             query: poolByPair,
             variables: { pair },
@@ -101,7 +107,9 @@ export class PoolController {
     }
 
     async getPoolById(id: string) {
-        const { data: { pools } } = await this.masterChefGraphClient.query({
+        const {
+            data: { pools },
+        } = await this.masterChefGraphClient.query({
             query: poolById,
             variables: { id },
         })
@@ -130,17 +138,19 @@ export class PoolController {
     async getPairTotalSupply(pair: string) {
         const customContract = this.pairContract.attach(pair)
         const totalSupply = await customContract.totalSupply()
-        const balance = await customContract.balanceOf(Address.JOE_MASTER_CHEF_ADDRESS)
+        const balance = await customContract.balanceOf(
+            Address.JOE_MASTER_CHEF_ADDRESS
+        )
         return {
             totalSupply,
-            balance
+            balance,
         }
     }
 
     async getPairLiquidity(pairAddress: string) {
-        // Somehow validate that pairAddress is a valid pair
-
-        // Cache
+        if (this.cachedPairLiquidity[pairAddress]) {
+            return this.cachedPairLiquidity[pairAddress]
+        }
 
         const customContract = this.pairContract.attach(pairAddress)
         const reserves = await customContract.getReserves()
@@ -157,15 +167,19 @@ export class PoolController {
         const token0Price = await this.priceController.getPrice(token0, false)
         const token1Price = await this.priceController.getPrice(token1, false)
 
-        const token0Tvl = reserves[0].mul(token0Price).div(getMantissaBigNumber(token0Decimals))
-        const token1Tvl = reserves[1].mul(token1Price).div(getMantissaBigNumber(token1Decimals))
+        const token0Tvl = reserves[0]
+            .mul(token0Price)
+            .div(getMantissaBigNumber(token0Decimals))
+        const token1Tvl = reserves[1]
+            .mul(token1Price)
+            .div(getMantissaBigNumber(token1Decimals))
 
         return token0Tvl.add(token1Tvl)
     }
 
     // mixing graphql with contracts, prefer to go either or because of consistency and optimization
     // Please revisit all of this in the optimization run
-    async getPoolApr(poolId: string, period: TimePeriod = "1y") {
+    async getPoolApr(poolId: string, period: TimePeriod = '1y') {
         if (this.cachedPoolApr[poolId]) {
             if (this.cachedPoolApr[poolId].period != period) {
                 return convertPeriod(this.cachedPoolApr[poolId], period)
@@ -174,7 +188,10 @@ export class PoolController {
             return this.cachedPoolApr[poolId].period
         }
 
-        const joePrice = await this.priceController.getPrice(Address.JOE_ADDRESS, false)
+        const joePrice = await this.priceController.getPrice(
+            Address.JOE_ADDRESS,
+            false
+        )
 
         const totalAllocPoint = await MasterChefContract.totalAllocPoint()
         const joePerSec = await MasterChefContract.joePerSec()
@@ -187,12 +204,12 @@ export class PoolController {
 
         // Multiply joePerSec by allocPoint / totalAllocPoint ratio
         const rewardsPerSec = allocPoint.mul(joePerSec).div(totalAllocPoint)
-        
+
         // Get it in dollar amounts and divide by balanceUSD to get percentage
         const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD)
 
         const rate = secondsToPeriod(roiPerSec, period)
-        this.cachedPoolApr[poolId] = {period, rate}
+        this.cachedPoolApr[poolId] = { period, rate }
         return rate
     }
 
@@ -213,7 +230,9 @@ export class PoolController {
 
         // TotalSupply and balance represents underlying LP token totalSupply and balance of
         // MasterChef contract
-        const { totalSupply, balance } = await this.getPairTotalSupply(pool.pair)
+        const { totalSupply, balance } = await this.getPairTotalSupply(
+            pool.pair
+        )
 
         // Reserve represents the liquidity of the underlying pair
         const reserveUSD = await this.getPairLiquidity(pool.pair)
@@ -225,7 +244,7 @@ export class PoolController {
         return balanceUSD
     }
 
-    async getPoolBonus(poolId: string, period: TimePeriod = "1y") {
+    async getPoolBonus(poolId: string, period: TimePeriod = '1y') {
         if (this.cachedPoolBonusApr[poolId]) {
             if (this.cachedPoolApr[poolId].period != period) {
                 return convertPeriod(this.cachedPoolApr[poolId], period)
@@ -236,13 +255,17 @@ export class PoolController {
 
         const poolInfo = await MasterChefContract.poolInfo(poolId)
         const rewarderAddress = poolInfo[4]
-        
-        const customRewarderContract = this.rewardContract.attach(rewarderAddress)
+
+        const customRewarderContract =
+            this.rewardContract.attach(rewarderAddress)
         const rewardToken = await customRewarderContract.rewardToken()
         const tokenPerSec = await customRewarderContract.tokenPerSec()
 
         // Get reward token price
-        const rewardTokenPrice = await this.priceController.getPrice(rewardToken, false)
+        const rewardTokenPrice = await this.priceController.getPrice(
+            rewardToken,
+            false
+        )
 
         // Get pool tvl, or balanceUSD
         const balanceUSD = await this.getPoolTvl(poolId)
@@ -251,7 +274,7 @@ export class PoolController {
         const roiPerSec = tokenPerSec.mul(rewardTokenPrice).div(balanceUSD)
 
         let rate = secondsToPeriod(roiPerSec, period)
-        this.cachedPoolBonusApr[poolId] = {period, rate}
+        this.cachedPoolBonusApr[poolId] = { period, rate }
         return rate
     }
 
@@ -260,8 +283,7 @@ export class PoolController {
         // Test pool pair: 0x62cf16bf2bc053e7102e2ac1dee5029b94008d99
         const router = express.Router()
 
-        // Maybe change to /liquidity
-        router.get('/:poolId/tvl', async (req, res, next) => {
+        router.get('/:poolId/liquidity', async (req, res, next) => {
             const poolId = req.params.poolId
             try {
                 const poolTvl = await this.getPoolTvl(poolId)
@@ -298,5 +320,6 @@ export class PoolController {
 
     async close() {
         clearInterval(this.hardRefreshInterval)
+        clearInterval(this.temporalRefreshInterval)
     }
 }

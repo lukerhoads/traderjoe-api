@@ -7,6 +7,7 @@ import JoeBarContractABI from '../../abi/JoeBar.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
 import ERC20 from '../../abi/ERC20.json'
 import { bnStringToDecimal, formatRes } from '../util'
+import { OpConfig } from '../config'
 
 const JoeFactoryContract = new ethers.Contract(
     Address.JOE_FACTORY_ADDRESS,
@@ -27,7 +28,8 @@ const JoeContract = new ethers.Contract(
 )
 
 export class PriceController {
-    private refreshInterval: number
+    private config: OpConfig
+
     private hardRefreshInterval: NodeJS.Timer
 
     private pairs: { [address: string]: string }
@@ -35,8 +37,8 @@ export class PriceController {
     private contracts: { [address: string]: Contract }
     private cachedPrices: { [address: string]: BigNumber }
 
-    constructor(refreshInterval: number) {
-        this.refreshInterval = refreshInterval
+    constructor(config: OpConfig) {
+        this.config = config
         this.hardRefreshInterval = setInterval(() => {})
         this.pairs = {}
         this.decimals = {}
@@ -51,7 +53,7 @@ export class PriceController {
             // Set this to empty because these change often
             this.cachedPrices = {}
             await this.getAvaxPrice()
-        }, this.refreshInterval)
+        }, this.config.priceRefreshTimeout)
     }
 
     get apiRouter() {
@@ -83,12 +85,17 @@ export class PriceController {
         return router
     }
 
-    protected async getAvaxPair(tokenAddress: string): Promise<string | undefined> {
+    protected async getAvaxPair(
+        tokenAddress: string
+    ): Promise<string | undefined> {
         if (this.pairs[tokenAddress]) {
             return this.pairs[tokenAddress]
         }
 
-        const pairAddress = await PriceController.getPairAddress(tokenAddress, Address.WAVAX_ADDRESS)
+        const pairAddress = await PriceController.getPairAddress(
+            tokenAddress,
+            Address.WAVAX_ADDRESS
+        )
         if (!pairAddress || pairAddress === Address.ZERO_ADDRESS) {
             return undefined
         }
@@ -140,9 +147,13 @@ export class PriceController {
             ),
         ])
 
-        const usdcPrice = reserves[0][1].mul(BigNumberMantissa).div(reserves[0][0])
-        const usdtPrice = reserves[1][1].mul(BigNumberMantissa).div(reserves[1][0])
-        
+        const usdcPrice = reserves[0][1]
+            .mul(BigNumberMantissa)
+            .div(reserves[0][0])
+        const usdtPrice = reserves[1][1]
+            .mul(BigNumberMantissa)
+            .div(reserves[1][0])
+
         const avaxPrice = usdcPrice.add(usdtPrice).div(BigNumber.from('2'))
         this.cachedPrices[Address.WAVAX_ADDRESS] = avaxPrice
         return avaxPrice
@@ -181,7 +192,9 @@ export class PriceController {
             }
 
             const avaxPrice = await this.getAvaxPrice()
-            return this.cachedPrices[tokenAddress].mul(avaxPrice).div(BigNumberMantissa)
+            return this.cachedPrices[tokenAddress]
+                .mul(avaxPrice)
+                .div(BigNumberMantissa)
         }
 
         const pairAddress = await this.getAvaxPair(tokenAddress)
@@ -219,14 +232,18 @@ export class PriceController {
         ])
 
         // Fix code quality here
-        let token0BalanceMultiplier = BigNumber.from("0")
-        let token1BalanceMultiplier = BigNumber.from("0")
+        let token0BalanceMultiplier = BigNumber.from('0')
+        let token1BalanceMultiplier = BigNumber.from('0')
 
         if (decimals[0].toString() !== decimals[1].toString()) {
             if (decimals[0] > decimals[1]) {
-                token1BalanceMultiplier = BigNumber.from(decimals[0] - decimals[1])
+                token1BalanceMultiplier = BigNumber.from(
+                    decimals[0] - decimals[1]
+                )
             } else {
-                token0BalanceMultiplier = BigNumber.from(decimals[1] - decimals[0])
+                token0BalanceMultiplier = BigNumber.from(
+                    decimals[1] - decimals[0]
+                )
             }
         }
 
@@ -235,7 +252,7 @@ export class PriceController {
         const token1Contract = this.getContract(token1Address)
         const token1Balance = await token1Contract.balanceOf(pairAddress)
 
-        const bn10 = BigNumber.from("10")
+        const bn10 = BigNumber.from('10')
         return [
             token0Balance.mul(bn10.pow(token0BalanceMultiplier)),
             token1Balance.mul(bn10.pow(token1BalanceMultiplier)),
@@ -248,15 +265,9 @@ export class PriceController {
     ): Promise<string | undefined> {
         if (token0 && token1) {
             if (token0 > token1) {
-                return JoeFactoryContract.getPair(
-                    token0,
-                    token1
-                )
+                return JoeFactoryContract.getPair(token0, token1)
             } else {
-                return JoeFactoryContract.getPair(
-                    token1,
-                    token0
-                )
+                return JoeFactoryContract.getPair(token1, token0)
             }
         }
 

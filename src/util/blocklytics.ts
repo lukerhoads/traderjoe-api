@@ -1,29 +1,36 @@
-import { ApolloClient, InMemoryCache } from "@apollo/client/core"
-import { startOfMinute, subDays, subHours, subMonths, subWeeks, subYears } from "date-fns"
-import { blockQuery } from "../queries/block"
-import { TimePeriod } from "../types"
+import { ApolloClient, InMemoryCache } from '@apollo/client/core'
+import {
+    startOfMinute,
+    subDays,
+    subHours,
+    subMonths,
+    subWeeks,
+    subYears,
+} from 'date-fns'
+import { blockQuery } from '../queries/block'
+import { TimePeriod } from '../types'
 
 const client = new ApolloClient({
-    uri: "https://api.thegraph.com/subgraphs/name/dasconnor/avalanche-blocks",
-    cache: new InMemoryCache()
+    uri: 'https://api.thegraph.com/subgraphs/name/dasconnor/avalanche-blocks',
+    cache: new InMemoryCache(),
 })
 
 export const getBlocks = async (period: TimePeriod) => {
-    let blocks;
+    let blocks
     switch (period) {
-        case "1h":
+        case '1h':
             blocks = await getOneHourBlock()
             return blocks
-        case "1d":
+        case '1d':
             blocks = await getOneDayBlock()
             return blocks
-        case "1w":
+        case '1w':
             blocks = await getOneWeekBlock()
             return blocks
-        case "1m":
+        case '1m':
             blocks = await getOneMonthBlock()
             return blocks
-        case "1y":
+        case '1y':
             blocks = await getOneYearBlock()
             return blocks
     }
@@ -81,8 +88,8 @@ const queryBlocklytics = async (start: number, end: number) => {
             start,
             end,
         },
-        fetchPolicy: "network-only"
-    }) 
+        fetchPolicy: 'network-only',
+    })
 
     return blockData
 }

@@ -63,8 +63,7 @@ export class SupplyController {
 
         // Deprecate this endpoint, completely pointless
         router.get('/circulating', (req, res, next) => {
-            res.send(formatRes(
-                this.circulatingSupply.toString()))
+            res.send(formatRes(this.circulatingSupply.toString()))
         })
 
         router.get('/circulating-adjusted', (req, res, next) => {
@@ -76,12 +75,15 @@ export class SupplyController {
         })
 
         router.get('/total', (req, res, next) => {
-            res.send(formatRes(
-                bnStringToDecimal(this.totalSupply.toString(), 18)))
+            res.send(
+                formatRes(bnStringToDecimal(this.totalSupply.toString(), 18))
+            )
         })
 
         router.get('/max', (req, res, next) => {
-            res.send(formatRes(bnStringToDecimal(this.maxSupply.toString(), 18)))
+            res.send(
+                formatRes(bnStringToDecimal(this.maxSupply.toString(), 18))
+            )
         })
 
         return router

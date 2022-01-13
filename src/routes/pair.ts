@@ -1,12 +1,22 @@
 import express from 'express'
-import { ApolloClient, InMemoryCache, NormalizedCacheObject } from '@apollo/client/core'
+import {
+    ApolloClient,
+    InMemoryCache,
+    NormalizedCacheObject,
+} from '@apollo/client/core'
 import { pairByAddress, pairTimeTravelQuery, poolsQuery } from '../queries'
 import { PriceController } from './price'
 import { Address, BigNumberMantissa, FEE_RATE } from '../constants'
 import { TimePeriod } from '../types'
 import { Contract, ethers } from 'ethers'
 import { getRandomProvider } from '../provider'
-import { bnStringToDecimal, formatRes, getBlocks, getMantissaBigNumber, stringToBn } from '../util'
+import {
+    bnStringToDecimal,
+    formatRes,
+    getBlocks,
+    getMantissaBigNumber,
+    stringToBn,
+} from '../util'
 
 import JoePairABI from '../../abi/JoePair.json'
 import ERC20ABI from '../../abi/ERC20.json'
@@ -17,23 +27,23 @@ export class PairController {
     private priceController: PriceController
     private pairContract: Contract
     private tokenContract: Contract
-    
+
     private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
     constructor(
         priceController: PriceController,
-        masterChefGraphUrl: string, 
-        exchangeGraphUrl: string, 
+        masterChefGraphUrl: string,
+        exchangeGraphUrl: string,
         refreshInterval: number
     ) {
         this.chefGraphClient = new ApolloClient<NormalizedCacheObject>({
             uri: masterChefGraphUrl,
-            cache: new InMemoryCache()
+            cache: new InMemoryCache(),
         })
         this.exchangeGraphClient = new ApolloClient<NormalizedCacheObject>({
             uri: exchangeGraphUrl,
-            cache: new InMemoryCache()
+            cache: new InMemoryCache(),
         })
         this.pairContract = new ethers.Contract(
             Address.WAVAX_USDC_ADDRESS,
@@ -51,9 +61,8 @@ export class PairController {
     }
 
     async init() {
-        this.hardRefreshInterval = setInterval(async () => {
-
-        }, this.refreshInterval)
+        this.hardRefreshInterval = setInterval(async () => {},
+        this.refreshInterval)
     }
 
     async topPairAddresses() {
@@ -61,7 +70,7 @@ export class PairController {
             data: { pools },
         } = await this.chefGraphClient.query({
             query: poolsQuery,
-        });
+        })
 
         return pools.map((pool: { pair: string }) => pool.pair)
     }
@@ -83,41 +92,51 @@ export class PairController {
         const token0Price = await this.priceController.getPrice(token0, false)
         const token1Price = await this.priceController.getPrice(token1, false)
 
-        const token0Tvl = reserves[0].mul(token0Price).div(getMantissaBigNumber(token0Decimals))
-        const token1Tvl = reserves[1].mul(token1Price).div(getMantissaBigNumber(token1Decimals))
+        const token0Tvl = reserves[0]
+            .mul(token0Price)
+            .div(getMantissaBigNumber(token0Decimals))
+        const token1Tvl = reserves[1]
+            .mul(token1Price)
+            .div(getMantissaBigNumber(token1Decimals))
 
         return token0Tvl.add(token1Tvl)
     }
 
     // Need to make this contract stuff
-    async getPairVolume(pairAddress: string, period: TimePeriod = "1d") {
+    async getPairVolume(pairAddress: string, period: TimePeriod = '1d') {
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
                 id: pairAddress,
-            }
+            },
         })
 
         const pair = pairData.pair
         const blocks = await getBlocks(period)
         if (!blocks.length) {
-            throw new Error("No data for that time period")
+            throw new Error('No data for that time period')
         }
 
         const blockNumber = Number(blocks[0].number)
-        const { data: { pair: periodPair }} = await this.exchangeGraphClient.query({
+        const {
+            data: { pair: periodPair },
+        } = await this.exchangeGraphClient.query({
             query: pairTimeTravelQuery,
             variables: {
                 block: {
-                    number: blockNumber
+                    number: blockNumber,
                 },
                 pairAddress: pairAddress,
             },
-            fetchPolicy: "no-cache"
+            fetchPolicy: 'no-cache',
         })
 
-        const volumeUSD = pair.volumeUSD === "0" ? pair.untrackedVolumeUSD : pair.volumeUSD
-        const periodVolumeUSD = periodPair.volumeUSD === "0" ? periodPair.untrackedVolumeUSD : periodPair.volumeUSD
+        const volumeUSD =
+            pair.volumeUSD === '0' ? pair.untrackedVolumeUSD : pair.volumeUSD
+        const periodVolumeUSD =
+            periodPair.volumeUSD === '0'
+                ? periodPair.untrackedVolumeUSD
+                : periodPair.volumeUSD
 
         const volumeUSDBn = stringToBn(volumeUSD, 18)
         const periodVolumeUSDBn = stringToBn(periodVolumeUSD, 18)
@@ -125,16 +144,16 @@ export class PairController {
         return volumeUSDBn.sub(periodVolumeUSDBn)
     }
 
-    async getPairFees(pairAddress: string, period: TimePeriod = "1d") {
+    async getPairFees(pairAddress: string, period: TimePeriod = '1d') {
         const pairVolume = await this.getPairVolume(pairAddress, period)
         return pairVolume.mul(FEE_RATE).div(BigNumberMantissa)
     }
 
     // These all depend on the period over which we are collecting data.
-    // Perhaps add up to four months? This would make it more historically accurate but 
-    // then again would not be future-proof because many pools were just getting started 
+    // Perhaps add up to four months? This would make it more historically accurate but
+    // then again would not be future-proof because many pools were just getting started
     // then
-    async getPairApr(pairAddress: string, period: TimePeriod = "1d") {
+    async getPairApr(pairAddress: string, period: TimePeriod = '1d') {
         // Move away from 1d hardcode
         const pairFees = await this.getPairFees(pairAddress, period)
         const pairLiquidity = await this.getPairLiquidity(pairAddress)
@@ -145,13 +164,13 @@ export class PairController {
     }
 
     // Testing out another method here (from analytics)
-    async getPairAprGraph(pairAddress: string, period: TimePeriod = "1d") {
+    async getPairAprGraph(pairAddress: string, period: TimePeriod = '1d') {
         // This is unnecessary, find how to optimize this with cache
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
                 id: pairAddress,
-            }
+            },
         })
 
         const pair = pairData.pair
@@ -190,7 +209,10 @@ export class PairController {
             const pairAddress = req.params.pairAddress.toLowerCase()
             const period = req.query.period as TimePeriod
             try {
-                const feesCollected = await this.getPairFees(pairAddress, period)
+                const feesCollected = await this.getPairFees(
+                    pairAddress,
+                    period
+                )
                 res.send(formatRes(feesCollected.toString()))
             } catch (err) {
                 next(err)

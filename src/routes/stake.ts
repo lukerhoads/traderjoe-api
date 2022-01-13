@@ -1,13 +1,9 @@
 import express from 'express'
 
 export class StakeController {
-    constructor() {
+    constructor() {}
 
-    }
-
-    async init() {
-
-    }
+    async init() {}
 
     get apiRouter() {
         const router = express.Router()
@@ -15,7 +11,5 @@ export class StakeController {
         return router
     }
 
-    async close() {
-
-    }
+    async close() {}
 }

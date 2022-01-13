@@ -1,8 +1,8 @@
-import gql from "graphql-tag"
+import gql from 'graphql-tag'
 
 export const poolById = gql`
     query poolByIdQuery($id: String!) {
-        pools (where: { id: $id }) {
+        pools(where: { id: $id }) {
             id
             pair
             allocPoint
@@ -26,7 +26,7 @@ export const poolById = gql`
 
 export const poolByPair = gql`
     query poolByPairQuery($pair: String!) {
-        pools (where: { pair: $pair }) {
+        pools(where: { pair: $pair }) {
             id
             pair
             allocPoint
@@ -49,14 +49,11 @@ export const poolByPair = gql`
 `
 
 export const poolsQuery = gql`
-    query poolsQuery(
-        $first: Int! = 1000
-        $skip: Int! = 0
-    ) {
-        pools (
+    query poolsQuery($first: Int! = 1000, $skip: Int! = 0) {
+        pools(
             first: $first
             skip: $skip
-            orderBy: timestamp,
+            orderBy: timestamp
             orderDirection: desc
         ) {
             id
@@ -75,4 +72,3 @@ export const poolsQuery = gql`
         }
     }
 `
-

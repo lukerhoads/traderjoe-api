@@ -1,27 +1,27 @@
-import { BigNumber } from "ethers"
-import e from "express"
-import { getMantissaBigNumber } from "."
+import { BigNumber } from 'ethers'
+import e from 'express'
+import { getMantissaBigNumber } from '.'
 
 export const bnStringToDecimal = (numberVal: string, power: number) => {
     let before, after: string
-    if (power >= numberVal.length || numberVal.startsWith("-")) {
+    if (power >= numberVal.length || numberVal.startsWith('-')) {
         let adjustedLength = numberVal.length
-        if (numberVal.startsWith("-")) {
+        if (numberVal.startsWith('-')) {
             adjustedLength -= 1
-            before = "-0"
+            before = '-0'
         } else {
-            before = "0"
+            before = '0'
         }
-        after = "."
-        if ((power - adjustedLength) > 0) {
+        after = '.'
+        if (power - adjustedLength > 0) {
             for (let i = 0; i < power - adjustedLength; i++) {
-                after += "0"
+                after += '0'
             }
         }
         after += numberVal.replace('-', '')
         return before + after
     }
-    after = "." + numberVal.slice(-power)
+    after = '.' + numberVal.slice(-power)
     before = numberVal.slice(0, -power)
     return before + after
 }
@@ -35,19 +35,19 @@ export const stringToBn = (number: string, power?: number) => {
 
     if (power) {
         localPower = power
-        if (number.includes(".")) {
-            parts = number.split(".")
+        if (number.includes('.')) {
+            parts = number.split('.')
         } else {
             parts[0] = number.slice(0, -localPower)
             parts[1] = number.slice(-localPower)
         }
     } else {
-        if (number.includes(".")) {
-            parts = number.split(".")
+        if (number.includes('.')) {
+            parts = number.split('.')
             localPower = parts[1].length
         } else {
-            parts[0] = number 
-            parts[1] = "0"
+            parts[0] = number
+            parts[1] = '0'
         }
     }
 

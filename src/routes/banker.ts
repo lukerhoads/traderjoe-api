@@ -4,12 +4,19 @@ import { TimePeriod } from '../types'
 import { Address, BigNumberMantissa, BigNumberZero } from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
-import { getMantissaBigNumber, bnStringToDecimal, formatRes } from '../util'
+import {
+    getMantissaBigNumber,
+    bnStringToDecimal,
+    formatRes,
+    convertPeriod,
+    secondsToPeriod,
+} from '../util'
+import { OpConfig } from '../config'
+import { Controller } from './controller'
 
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
 import ERC20ABI from '../../abi/ERC20.json'
-import { convertPeriod, secondsToPeriod } from '../util/apr-time-convert'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -22,34 +29,34 @@ export interface PeriodRate {
     rate: BigNumber
 }
 
-export class BankerController {
+export class BankerController implements Controller {
+    private config: OpConfig
+
     private jTokenContract: Contract
     private underlyingContract: Contract
     private priceController: PriceController
 
-    private markets: string[]
+    private markets: string[] = []
 
-    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
-    private totalSupply: BigNumber
-    private totalBorrow: BigNumber
+    private totalSupply: BigNumber = BigNumber.from('0')
+    private totalBorrow: BigNumber = BigNumber.from('0')
 
-    private cachedMarketSupply: { [address: string]: BigNumber }
-    private cachedMarketBorrow: { [address: string]: BigNumber }
+    private cachedMarketSupply: { [address: string]: BigNumber } = {}
+    private cachedMarketBorrow: { [address: string]: BigNumber } = {}
 
-    private cachedUserSupply: { [address: string]: BigNumber }
-    private cachedUserBorrow: { [address: string]: BigNumber }
+    private cachedUserSupply: { [address: string]: BigNumber } = {}
+    private cachedUserBorrow: { [address: string]: BigNumber } = {}
 
-    private cachedMarketSupplyApy: { [address: string]: PeriodRate }
-    private cachedMarketBorrowApy: { [address: string]: PeriodRate }
+    private cachedMarketSupplyApy: { [address: string]: PeriodRate } = {}
+    private cachedMarketBorrowApy: { [address: string]: PeriodRate } = {}
 
-    private cachedUserNetApy: { [address: string]: BigNumber }
+    private cachedUserNetApy: { [address: string]: BigNumber } = {}
 
-    constructor(
-        priceController: PriceController,
-        refreshInterval: number
-    ) {
+    constructor(config: OpConfig, priceController: PriceController) {
+        this.config = config
+        this.priceController = priceController
         this.jTokenContract = new ethers.Contract(
             Address.JAVAX_ADDRESS,
             JTokenABI,
@@ -60,19 +67,7 @@ export class BankerController {
             ERC20ABI,
             getRandomProvider()
         )
-        this.markets = []
-        this.priceController = priceController
-        this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
-        this.totalSupply = BigNumber.from("0")
-        this.totalBorrow = BigNumber.from("0")
-        this.cachedMarketBorrow = {} 
-        this.cachedMarketSupply = {}
-        this.cachedUserBorrow = {}
-        this.cachedUserSupply = {}
-        this.cachedMarketSupplyApy = {}
-        this.cachedMarketBorrowApy = {}
-        this.cachedUserNetApy = {}
     }
 
     async init() {
@@ -81,18 +76,20 @@ export class BankerController {
         await this.resetTotals()
         this.hardRefreshInterval = setInterval(async () => {
             await this.resetTotals()
-        }, this.refreshInterval)
+        }, this.config.bankRefreshTimeout)
     }
 
     async resetTotals() {
-        let tempTotalSupply = BigNumber.from("0")
-        let tempTotalBorrow = BigNumber.from("0")
-        await Promise.all(this.markets.map(async (market: string) => {
-            const supplyByMarket = await this.getSupplyByMarket(market)
-            const borrowByMarket = await this.getBorrowByMarket(market)
-            tempTotalSupply = tempTotalSupply.add(supplyByMarket)
-            tempTotalBorrow = tempTotalBorrow.add(borrowByMarket)
-        }))
+        let tempTotalSupply = BigNumber.from('0')
+        let tempTotalBorrow = BigNumber.from('0')
+        await Promise.all(
+            this.markets.map(async (market: string) => {
+                const supplyByMarket = await this.getSupplyByMarket(market)
+                const borrowByMarket = await this.getBorrowByMarket(market)
+                tempTotalSupply = tempTotalSupply.add(supplyByMarket)
+                tempTotalBorrow = tempTotalBorrow.add(borrowByMarket)
+            })
+        )
 
         this.totalSupply = tempTotalSupply
         this.totalBorrow = tempTotalBorrow
@@ -100,9 +97,9 @@ export class BankerController {
 
     async getSupplyByMarket(marketAddress: string) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
-            throw new Error("Invalid market address provided.")
+            throw new Error('Invalid market address provided.')
         }
-        
+
         if (this.cachedMarketSupply[marketAddress]) {
             return this.cachedMarketSupply[marketAddress]
         }
@@ -111,23 +108,30 @@ export class BankerController {
         const underlying = await customContract.underlying()
         const jTokenTotalSupply = await customContract.totalSupply()
         const exchangeRate = await customContract.exchangeRateStored()
-        const underlyingPrice = await this.priceController.getPrice(underlying, false)
-        
-        const divideExp = (27 + exchangeRate.toString().length) - 18
+        const underlyingPrice = await this.priceController.getPrice(
+            underlying,
+            false
+        )
+
+        const divideExp = 27 + exchangeRate.toString().length - 18
         const divisor = getMantissaBigNumber(divideExp)
-        const totalSupply = jTokenTotalSupply.mul(exchangeRate).mul(underlyingPrice)
+        const totalSupply = jTokenTotalSupply
+            .mul(exchangeRate)
+            .mul(underlyingPrice)
         this.cachedMarketSupply[marketAddress] = totalSupply.div(divisor)
-        
+
         // Get borrow too, so we don't have to re-attach for the next borrow request
         const totalBorrow = await customContract.totalBorrows()
-        const adjustedBorrow = totalBorrow.mul(underlyingPrice).div(BigNumberMantissa)
+        const adjustedBorrow = totalBorrow
+            .mul(underlyingPrice)
+            .div(BigNumberMantissa)
         this.cachedMarketBorrow[marketAddress] = adjustedBorrow
         return totalSupply.div(divisor)
     }
 
     async getBorrowByMarket(marketAddress: string) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
-            throw new Error("Invalid market address provided.")
+            throw new Error('Invalid market address provided.')
         }
 
         if (this.cachedMarketBorrow[marketAddress]) {
@@ -136,70 +140,99 @@ export class BankerController {
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const underlying = await customContract.underlying()
-        const underlyingPrice = await this.priceController.getPrice(underlying, false)
+        const underlyingPrice = await this.priceController.getPrice(
+            underlying,
+            false
+        )
         const totalBorrows = await customContract.totalBorrows()
-        const adjustedBorrow = totalBorrows.mul(underlyingPrice).div(BigNumberMantissa)
+        const adjustedBorrow = totalBorrows
+            .mul(underlyingPrice)
+            .div(BigNumberMantissa)
         this.cachedMarketBorrow[marketAddress] = adjustedBorrow
         return adjustedBorrow
     }
 
-    async getSupplyApyByMarket(marketAddress: string, period: TimePeriod = "1y") {
+    // Debug these later, and also setup event listeners. They do not change often
+    async getSupplyApyByMarket(
+        marketAddress: string,
+        period: TimePeriod = '1y'
+    ) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
-            throw new Error("Invalid market address provided.")
+            throw new Error('Invalid market address provided.')
         }
 
         if (this.cachedMarketSupplyApy[marketAddress]) {
-            return convertPeriod(this.cachedMarketSupplyApy[marketAddress], period)
+            return convertPeriod(
+                this.cachedMarketSupplyApy[marketAddress],
+                period
+            )
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const supplyRatePerSecond = await customContract.supplyRatePerSecond()
         let rate = secondsToPeriod(supplyRatePerSecond, period)
-        this.cachedMarketSupplyApy[marketAddress] = {period, rate}
+        this.cachedMarketSupplyApy[marketAddress] = { period, rate }
         return rate
     }
 
-    async getBorrowApyByMarket(marketAddress: string, period: TimePeriod = "1y") {
+    async getBorrowApyByMarket(
+        marketAddress: string,
+        period: TimePeriod = '1y'
+    ) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
-            throw new Error("Invalid market address provided.")
+            throw new Error('Invalid market address provided.')
         }
 
         if (this.cachedMarketSupplyApy[marketAddress]) {
-            return convertPeriod(this.cachedMarketSupplyApy[marketAddress], period)
+            return convertPeriod(
+                this.cachedMarketSupplyApy[marketAddress],
+                period
+            )
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const borrowRatePerSecond = await customContract.borrowRatePerSecond()
         let rate = secondsToPeriod(borrowRatePerSecond, period)
-        this.cachedMarketBorrowApy[marketAddress] = {period: period, rate}
+        this.cachedMarketBorrowApy[marketAddress] = { period: period, rate }
         return rate
     }
 
     async getUserSupply(user: string) {
-        const assetsIn = await JoetrollerContract.getAssetsIn(user)
-        if (!assetsIn) {
-            throw new Error("User has not supplied any assets")
+        if (this.cachedUserSupply[user]) {
+            return this.cachedUserSupply[user]
         }
 
-        const totalSupplied = await Promise.all(assetsIn.map(async (asset: string) => {
-            const customContract = this.jTokenContract.attach(asset)
-            const suppliedAssets = await customContract.balanceOf(user)
-            if (suppliedAssets.eq(BigNumberZero)) {
-                return
-            }
+        const assetsIn = await JoetrollerContract.getAssetsIn(user)
+        if (!assetsIn) {
+            throw new Error('User has not supplied any assets')
+        }
 
-            const underlying = await customContract.underlying()
-            const exchangeRate = await customContract.exchangeRateStored()
-            const underlyingPrice = await this.priceController.getPrice(underlying, false)
+        const totalSupplied = await Promise.all(
+            assetsIn.map(async (asset: string) => {
+                const customContract = this.jTokenContract.attach(asset)
+                const suppliedAssets = await customContract.balanceOf(user)
+                if (suppliedAssets.eq(BigNumberZero)) {
+                    return
+                }
 
-            const divideExp = (27 + exchangeRate.toString().length) - 18
-            const divisor = getMantissaBigNumber(divideExp)
-            const totalSupply = suppliedAssets.mul(exchangeRate).mul(underlyingPrice)
-            const totalSupplyConv = totalSupply.div(divisor)
-            return totalSupplyConv
-        }))
+                const underlying = await customContract.underlying()
+                const exchangeRate = await customContract.exchangeRateStored()
+                const underlyingPrice = await this.priceController.getPrice(
+                    underlying,
+                    false
+                )
 
-        let userSupply = BigNumber.from("0")
+                const divideExp = 27 + exchangeRate.toString().length - 18
+                const divisor = getMantissaBigNumber(divideExp)
+                const totalSupply = suppliedAssets
+                    .mul(exchangeRate)
+                    .mul(underlyingPrice)
+                const totalSupplyConv = totalSupply.div(divisor)
+                return totalSupplyConv
+            })
+        )
+
+        let userSupply = BigNumber.from('0')
         for (let i = 0; i < totalSupplied.length; i++) {
             userSupply = userSupply.add(totalSupplied[i])
         }
@@ -209,27 +242,42 @@ export class BankerController {
     }
 
     async getUserBorrow(user: string) {
-        const assetsIn = await JoetrollerContract.getAssetsIn(user)
-        if (!assetsIn) {
-            throw new Error("User has not borrowed any assets")
+        if (this.cachedUserBorrow[user]) {
+            return this.cachedUserBorrow[user]
         }
 
-        const totalBorrowed = await Promise.all(assetsIn.map(async (asset: string) => {
-            const customContract = this.jTokenContract.attach(asset)
-            const accountSnapshot = await customContract.getAccountSnapshot(user)
-            const borrowedAssets = accountSnapshot[2]
+        const assetsIn = await JoetrollerContract.getAssetsIn(user)
+        if (!assetsIn) {
+            throw new Error('User has not borrowed any assets')
+        }
 
-            const underlying = await customContract.underlying()
-            const underlyingPrice = await this.priceController.getPrice(underlying, false)
-            const customUnderlyingContract = this.underlyingContract.attach(underlying)
-            const underlyingDecimals = await customUnderlyingContract.decimals()
+        const totalBorrowed = await Promise.all(
+            assetsIn.map(async (asset: string) => {
+                const customContract = this.jTokenContract.attach(asset)
+                const accountSnapshot = await customContract.getAccountSnapshot(
+                    user
+                )
+                const borrowedAssets = accountSnapshot[2]
 
-            const divisor = getMantissaBigNumber(underlyingDecimals)
-            const totalBorrow = borrowedAssets.mul(underlyingPrice).div(divisor)
-            return totalBorrow
-        }))
+                const underlying = await customContract.underlying()
+                const underlyingPrice = await this.priceController.getPrice(
+                    underlying,
+                    false
+                )
+                const customUnderlyingContract =
+                    this.underlyingContract.attach(underlying)
+                const underlyingDecimals =
+                    await customUnderlyingContract.decimals()
 
-        let userBorrow = BigNumber.from("0")
+                const divisor = getMantissaBigNumber(underlyingDecimals)
+                const totalBorrow = borrowedAssets
+                    .mul(underlyingPrice)
+                    .div(divisor)
+                return totalBorrow
+            })
+        )
+
+        let userBorrow = BigNumber.from('0')
         for (let i = 0; i < totalBorrowed.length; i++) {
             userBorrow = userBorrow.add(totalBorrowed[i])
         }
@@ -238,31 +286,45 @@ export class BankerController {
         return userBorrow
     }
 
-    async getUserNetApy(user: string, period: TimePeriod = "1y") {
-        const assetsIn = await JoetrollerContract.getAssetsIn(user)
-        if (!assetsIn) {
-            throw new Error("User is not invested in any markets")
+    async getUserNetApy(user: string, period: TimePeriod = '1y') {
+        if (this.cachedUserNetApy[user]) {
+            return this.cachedUserNetApy[user]
         }
 
-        const allApys = await Promise.all(assetsIn.map(async (asset: string) => {
-            const customContract = this.jTokenContract.attach(asset)
-            const accountSnapshot = await customContract.getAccountSnapshot(user)
-            const borrowedAssets = accountSnapshot[2]
-            if (borrowedAssets.toString() != "0") {
-                const borrowApy = await this.getBorrowApyByMarket(asset, period)
-                netApy = netApy.sub(borrowApy)
-            }
+        const assetsIn = await JoetrollerContract.getAssetsIn(user)
+        if (!assetsIn) {
+            throw new Error('User is not invested in any markets')
+        }
 
-            const suppliedAssets = await customContract.balanceOf(user)
-            if (suppliedAssets.toString() != "0") {
-                const supplyApy = await this.getSupplyApyByMarket(asset, period)
-                netApy = netApy.add(supplyApy)
-            }
+        const allApys = await Promise.all(
+            assetsIn.map(async (asset: string) => {
+                const customContract = this.jTokenContract.attach(asset)
+                const accountSnapshot = await customContract.getAccountSnapshot(
+                    user
+                )
+                const borrowedAssets = accountSnapshot[2]
+                if (borrowedAssets.toString() != '0') {
+                    const borrowApy = await this.getBorrowApyByMarket(
+                        asset,
+                        period
+                    )
+                    netApy = netApy.sub(borrowApy)
+                }
 
-            return netApy
-        }))
+                const suppliedAssets = await customContract.balanceOf(user)
+                if (suppliedAssets.toString() != '0') {
+                    const supplyApy = await this.getSupplyApyByMarket(
+                        asset,
+                        period
+                    )
+                    netApy = netApy.add(supplyApy)
+                }
 
-        let netApy = BigNumber.from("0")
+                return netApy
+            })
+        )
+
+        let netApy = BigNumber.from('0')
         for (let i = 0; i < allApys.length; i++) {
             netApy = netApy.add(allApys[i])
         }
@@ -287,7 +349,9 @@ export class BankerController {
         router.get('/supply/:marketAddress', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
             try {
-                const supplyByMarket = await this.getSupplyByMarket(marketAddress)
+                const supplyByMarket = await this.getSupplyByMarket(
+                    marketAddress
+                )
                 const supplyByMarketString = supplyByMarket.toString()
                 res.send(formatRes(bnStringToDecimal(supplyByMarketString, 18)))
             } catch (err) {
@@ -298,7 +362,9 @@ export class BankerController {
         router.get('/borrow/:marketAddress', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
             try {
-                const borrowByMarket = await this.getBorrowByMarket(marketAddress)
+                const borrowByMarket = await this.getBorrowByMarket(
+                    marketAddress
+                )
                 const borrowByMarketString = borrowByMarket.toString()
                 res.send(formatRes(bnStringToDecimal(borrowByMarketString, 18)))
             } catch (err) {
@@ -311,7 +377,10 @@ export class BankerController {
             const period = req.query.period as TimePeriod
 
             try {
-                const supplyApy = await this.getSupplyApyByMarket(marketAddress, period)
+                const supplyApy = await this.getSupplyApyByMarket(
+                    marketAddress,
+                    period
+                )
                 const supplyApyString = supplyApy.toString()
                 res.send(formatRes(bnStringToDecimal(supplyApyString, 18)))
             } catch (err) {
@@ -319,12 +388,16 @@ export class BankerController {
             }
         })
 
+        // Supply and borrow APY for a single market
         router.get('/borrow/:marketAddress/apy', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
             const period = req.query.period as TimePeriod
 
             try {
-                const borrowApy = await this.getBorrowApyByMarket(marketAddress, period)
+                const borrowApy = await this.getBorrowApyByMarket(
+                    marketAddress,
+                    period
+                )
                 const borrowApyString = borrowApy.toString()
                 res.send(formatRes(bnStringToDecimal(borrowApyString, 18)))
             } catch (err) {
@@ -332,7 +405,6 @@ export class BankerController {
             }
         })
 
-        // Individual user rewards
         router.get('/supply/user/:userAddress', async (req, res, next) => {
             const user = req.params.userAddress.toLowerCase()
             try {
@@ -344,6 +416,7 @@ export class BankerController {
             }
         })
 
+        // Supply and borrow APY for an individual user
         router.get('/borrow/user/:userAddress', async (req, res, next) => {
             const user = req.params.userAddress.toLowerCase()
             try {

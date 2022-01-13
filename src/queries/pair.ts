@@ -1,4 +1,4 @@
-import gql from "graphql-tag";
+import gql from 'graphql-tag'
 
 export const pairTokenFieldsQuery = gql`
     fragment pairTokenFields on Token {
@@ -8,11 +8,11 @@ export const pairTokenFieldsQuery = gql`
         totalSupply
         derivedAVAX
     }
-`;
+`
 
 export const pairByAddress = gql`
     query pairById($id: String!) {
-        pair (id: $id) {
+        pair(id: $id) {
             id
             reserveUSD
             reserveAVAX
@@ -43,8 +43,8 @@ export const pairTimeTravelQuery = gql`
         $pairAddress: Bytes!
         $block: Block_height!
     ) {
-        pair (
-            id: $pairAddress,
+        pair(
+            id: $pairAddress
             first: $first
             block: $block
             orderBy: trackedReserveAVAX

@@ -6,7 +6,16 @@ import swaggerUi from 'swagger-ui-express'
 import Config from './config'
 import YAML from 'yamljs'
 import { formatRes } from './util/format-res'
-import { PoolController, PairController, SupplyController, Controller, PriceController, NFTController, BankerController, MetricsController } from './routes'
+import {
+    PoolController,
+    PairController,
+    SupplyController,
+    Controller,
+    PriceController,
+    NFTController,
+    BankerController,
+    MetricsController,
+} from './routes'
 import { AdminController } from './routes/admin/config'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
@@ -39,12 +48,16 @@ export class Server {
 
         const versionRouter = express.Router()
 
-        const supplyController = new SupplyController(this.config.config.supplyRefreshTimeout)
+        const supplyController = new SupplyController(
+            this.config.config.supplyRefreshTimeout
+        )
         await supplyController.init()
         versionRouter.use('/supply', supplyController.apiRouter)
         this.controllers.push(supplyController)
 
-        const priceController = new PriceController(this.config.config.priceRefreshTimeout)
+        const priceController = new PriceController(
+            this.config.config.priceRefreshTimeout
+        )
         await priceController.init()
         versionRouter.use('/price', priceController.apiRouter)
         this.controllers.push(priceController)
@@ -57,7 +70,7 @@ export class Server {
         const pairController = new PairController(
             priceController,
             this.config.config.masterChefGraphUrl,
-            this.config.config.exchangeGraphUrl, 
+            this.config.config.exchangeGraphUrl,
             this.config.config.poolRefreshTimeout
         )
         await pairController.init()
@@ -65,8 +78,8 @@ export class Server {
         this.controllers.push(pairController)
 
         const poolController = new PoolController(
-            priceController, 
-            this.config.config.masterChefGraphUrl, 
+            priceController,
+            this.config.config.masterChefGraphUrl,
             this.config.config.poolRefreshTimeout
         )
         await poolController.init()
@@ -82,7 +95,7 @@ export class Server {
         this.controllers.push(bankerController)
 
         const metricsController = new MetricsController(
-            priceController, 
+            priceController,
             this.config.config.exchangeGraphUrl,
             this.config.config.metricsRefreshTimeout
         )

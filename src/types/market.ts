@@ -1,6 +1,6 @@
 export interface Market {
-    totalSupply: string 
-    exchangeRate: string 
+    totalSupply: string
+    exchangeRate: string
     totalBorrows: string
-    underlyingPriceUSD: string  
+    underlyingPriceUSD: string
 }

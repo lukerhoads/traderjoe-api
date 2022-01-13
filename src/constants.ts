@@ -1,6 +1,6 @@
 import { BigNumber } from 'ethers'
 
-export const BigNumberZero = BigNumber.from("0")
+export const BigNumberZero = BigNumber.from('0')
 export const BigNumberMantissa = BigNumber.from('1000000000000000000')
 export const BigNumber16 = BigNumber.from('10000000000000000')
 export const BigNumber8 = BigNumber.from('100000000')
@@ -9,10 +9,10 @@ export const BigNumber24 = BigNumber.from('1000000000000000000000000')
 
 // Use this for testnet configuration
 function getAddress() {
-    return process.env.NETWORK === "mainnet" ? Address : TestnetAddress
+    return process.env.NETWORK === 'mainnet' ? Address : TestnetAddress
 }
 
-export const FEE_RATE = BigNumber.from("2500000000000000")
+export const FEE_RATE = BigNumber.from('2500000000000000')
 
 export namespace Address {
     export const JOE_ADDRESS = '0x6e84a6216ea6dacc71ee8e6b0a5b7322eebc0fdd'
@@ -43,12 +43,15 @@ export namespace Address {
         '0xd858ebaa943b4c2fb06ba0ba8920a132fd2410ee', // Multi-sig wallet
     ]
 
-    export const JOETROLLER_ADDRESS = "0xdc13687554205e5b89ac783db14bb5bba4a1edac" // proxy
-    export const JAVAX_ADDRESS = "0xc22f01ddc8010ee05574028528614634684ec29e"
+    export const JOETROLLER_ADDRESS =
+        '0xdc13687554205e5b89ac783db14bb5bba4a1edac' // proxy
+    export const JAVAX_ADDRESS = '0xc22f01ddc8010ee05574028528614634684ec29e'
 
-    export const JOE_MASTER_CHEF_ADDRESS = "0x188bED1968b795d5c9022F6a0bb5931Ac4c18F00"
+    export const JOE_MASTER_CHEF_ADDRESS =
+        '0x188bED1968b795d5c9022F6a0bb5931Ac4c18F00'
 
-    export const GOHM_REWARD_ADDRESS = "0x99Ad2A9A0d4A15d861C0b60c7df8965D1B3e18D8"
+    export const GOHM_REWARD_ADDRESS =
+        '0x99Ad2A9A0d4A15d861C0b60c7df8965D1B3e18D8'
 }
 
 export namespace TestnetAddress {
@@ -80,6 +83,7 @@ export namespace TestnetAddress {
         '0xd858ebaa943b4c2fb06ba0ba8920a132fd2410ee', // Multi-sig wallet
     ]
 
-    export const JOETROLLER_ADDRESS = "0xdc13687554205e5b89ac783db14bb5bba4a1edac" // proxy
-    export const JAVAX_ADDRESS = "0xc22f01ddc8010ee05574028528614634684ec29e"
+    export const JOETROLLER_ADDRESS =
+        '0xdc13687554205e5b89ac783db14bb5bba4a1edac' // proxy
+    export const JAVAX_ADDRESS = '0xc22f01ddc8010ee05574028528614634684ec29e'
 }
