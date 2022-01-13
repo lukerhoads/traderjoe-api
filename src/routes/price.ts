@@ -150,7 +150,7 @@ export class PriceController {
 
     protected async getXJoePrice(derived: boolean) {
         if (this.cachedPrices[Address.XJOE_ADDRESS]) {
-            return this.cachedPrices[Address.WAVAX_ADDRESS]
+            return this.cachedPrices[Address.XJOE_ADDRESS]
         }
 
         const joeBalance = await JoeContract.balanceOf(Address.XJOE_ADDRESS)

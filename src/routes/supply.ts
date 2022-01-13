@@ -2,7 +2,7 @@ import { BigNumber, ethers } from 'ethers'
 import express from 'express'
 import { getRandomProvider } from '../provider'
 import { Address, BigNumberMantissa } from '../constants'
-import { formatRes } from '../util'
+import { bnStringToDecimal, formatRes } from '../util'
 
 import JoeContractABI from '../../abi/JoeToken.json'
 
@@ -61,24 +61,27 @@ export class SupplyController {
     get apiRouter() {
         const router = express.Router()
 
+        // Deprecate this endpoint, completely pointless
         router.get('/circulating', (req, res, next) => {
-            res.send(formatRes(this.circulatingSupply.toString()))
+            res.send(formatRes(
+                this.circulatingSupply.toString()))
         })
 
         router.get('/circulating-adjusted', (req, res, next) => {
             res.send(
                 formatRes(
-                    this.circulatingSupply.div(BigNumberMantissa).toString()
+                    bnStringToDecimal(this.circulatingSupply.toString(), 18)
                 )
             )
         })
 
         router.get('/total', (req, res, next) => {
-            res.send(formatRes(this.totalSupply.toString()))
+            res.send(formatRes(
+                bnStringToDecimal(this.totalSupply.toString(), 18)))
         })
 
         router.get('/max', (req, res, next) => {
-            res.send(formatRes(this.maxSupply.toString()))
+            res.send(formatRes(bnStringToDecimal(this.maxSupply.toString(), 18)))
         })
 
         return router

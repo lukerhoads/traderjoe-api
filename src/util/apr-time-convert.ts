@@ -12,9 +12,9 @@ export const secondsToPeriod = (roiPerSec: BigNumber, period: TimePeriod) => {
             return roiPerSec.mul(60 * 60)
         case "1d":
             return roiPerSec.mul(3600 * 24)
-            case "1w":
-        return roiPerSec.mul(3600 * 24 * 7)
-        case "1m":
+        case "1w":
+            return roiPerSec.mul(3600 * 24 * 7)
+        case "1mo":
             return roiPerSec.mul(3600 * 24 * 30)
         case "1y":
             return roiPerSec.mul(3600 * 24 * 30 * 12)
@@ -35,7 +35,7 @@ export const convertPeriod = (periodRate: PeriodRate, expectedPeriod: TimePeriod
             roiPerSec = periodRate.rate.div(3600 * 24)
         case "1w":
             roiPerSec = periodRate.rate.div(3600 * 24 * 7)
-        case "1m":
+        case "1mo":
             roiPerSec = periodRate.rate.div(3600 * 24 * 30)
         case "1y":
             roiPerSec = periodRate.rate.div(3600 * 24 * 30 * 12)
@@ -52,7 +52,7 @@ export const convertPeriod = (periodRate: PeriodRate, expectedPeriod: TimePeriod
             return roiPerSec.mul(3600 * 24)
         case "1w":
             return roiPerSec.mul(3600 * 24 * 7)
-        case "1m":
+        case "1mo":
             return roiPerSec.mul(3600 * 24 * 30)
         case "1y":
             return roiPerSec.mul(3600 * 24 * 30 * 12)

@@ -15,6 +15,7 @@ import JoePairABI from '../../abi/JoePair.json'
 import ERC20ABI from '../../abi/ERC20.json'
 import RewarderABI from '../../abi/SimpleRewarder.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
+import JoeLPTokenABI from '../../abi/JoeLPToken.json'
 
 const MasterChefContract = new ethers.Contract(
     Address.JOE_MASTER_CHEF_ADDRESS,
@@ -99,6 +100,7 @@ export class PoolController {
         return pools[0]
     }
 
+    // Only need pair
     async getPoolById(id: string) {
         // Find how to get this through masterchef
         const { data: { pools } } = await this.masterChefGraphClient.query({
@@ -107,6 +109,21 @@ export class PoolController {
         })
 
         return pools[0]
+    }
+
+    async getPoolPairByIdContract(id: string) {
+        const poolInfo = await MasterChefContract.poolInfo(id)
+
+        const lpTokenContract = new ethers.Contract(
+            poolInfo[0],
+            JoeLPTokenABI,
+            getRandomProvider()
+        )
+
+        const token0 = await lpTokenContract.token0()
+        const token1 = await lpTokenContract.token1()
+        const pair = await JoeFactoryContract.getPair(token0, token1)
+        return pair
     }
 
     // Gets totalSupply of joe LP token
@@ -146,9 +163,13 @@ export class PoolController {
 
     // mixing graphql with contracts, prefer to go either or because of consistency and optimization
     // Please revisit all of this in the optimization run
-    async getPoolApr(poolId: string, period: TimePeriod = "1m") {
+    async getPoolApr(poolId: string, period: TimePeriod = "1mo") {
         if (this.cachedPoolApr[poolId]) {
-            return convertPeriod(this.cachedPoolApr[poolId], period)
+            if (this.cachedPoolApr[poolId].period != period) {
+                return convertPeriod(this.cachedPoolApr[poolId], period)
+            }
+
+            return this.cachedPoolApr[poolId].period
         }
 
         const joePrice = await this.priceController.getPrice(Address.JOE_ADDRESS, false)
@@ -159,21 +180,24 @@ export class PoolController {
         const poolInfo = await MasterChefContract.poolInfo(poolId)
 
         const allocPoint = poolInfo[3]
+
+        // TotalSupply and balance represents underlying LP token totalSupply and balance of
+        // MasterChef contract
         const { totalSupply, balance } = await this.getPairTotalSupply(pool.pair)
 
         // Reserve represents the liquidity of the underlying pair
         const reserveUSD = await this.getPairLiquidity(pool.pair)
 
         // BalanceUSD represents the liquidity of the pool
-        const balanceUSD = balance.mul(reserveUSD).div(totalSupply).div(BigNumberMantissa)
+        const balanceUSD = balance.mul(reserveUSD).div(totalSupply)
 
         // Multiply joePerSec by allocPoint / totalAllocPoint ratio
         const rewardsPerSec = allocPoint.mul(joePerSec).div(totalAllocPoint)
         
         // Get it in dollar amounts and divide by balanceUSD to get percentage
-        const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD).div(BigNumberMantissa)
+        const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD)
 
-        let rate = secondsToPeriod(roiPerSec, period)
+        const rate = secondsToPeriod(roiPerSec, period)
         this.cachedPoolApr[poolId] = {period, rate}
         return rate
     }
@@ -199,7 +223,7 @@ export class PoolController {
         const reserveUSD = await this.getPairLiquidity(pool.pair)
 
         // BalanceUSD represents the liquidity of the pool
-        const balanceUSD = balance.mul(reserveUSD).div(totalSupply).div(BigNumberMantissa)
+        const balanceUSD = balance.mul(reserveUSD).div(totalSupply)
 
         this.cachedPoolTvl[poolId] = balanceUSD
         return balanceUSD
@@ -224,7 +248,7 @@ export class PoolController {
         const balanceUSD = await this.getPoolTvl(poolId)
 
         // Get it in dollar amounts and divide by balanceUSD to get percentage
-        const roiPerSec = tokenPerSec.mul(rewardTokenPrice).div(balanceUSD).div(BigNumberMantissa)
+        const roiPerSec = tokenPerSec.mul(rewardTokenPrice).div(balanceUSD)
 
         let rate = secondsToPeriod(roiPerSec, period)
         this.cachedPoolBonusApr[poolId] = {period, rate}
