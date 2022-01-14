@@ -81,7 +81,7 @@ export const rateToYear = (value: PeriodRate) => {
     }
 }
 
-const periodOrder: TimePeriod = ['1m', '1h', '1d', '1w', '1mo', '1y']
+const periodOrder: TimePeriod[] = ['1m', '1h', '1d', '1w', '1mo', '1y']
 
 export const periodGt = (period1: TimePeriod, period2: TimePeriod) => {
     return periodOrder.indexOf(period1) > periodOrder.indexOf(period2)
