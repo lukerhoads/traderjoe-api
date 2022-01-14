@@ -17,6 +17,8 @@ import {
     MetricsController,
     StakeController,
 } from './routes'
+import pino from 'pino-http'
+import { Logger } from './logger'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -38,6 +40,7 @@ export class Server {
         this.setupDocs()
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
+        this.app.use(Logger)
 
         this.app.get(
             '/ping',
@@ -68,7 +71,7 @@ export class Server {
         this.controllers.push(nftController)
 
         const pairController = new PairController(
-            this.config.,
+            this.config.opCfg,
             priceController,
         )
         await pairController.init()
