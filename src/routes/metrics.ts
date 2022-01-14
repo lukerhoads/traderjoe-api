@@ -5,12 +5,12 @@ import {
     InMemoryCache,
     NormalizedCacheObject,
 } from '@apollo/client/core'
-import { dayDataQuery, getExchangeTvlQuery, lastDayVolume, lastHourVolumeQuery, volumeOverTimeQuery } from '../queries'
+import { getExchangeTvlQuery, lastDayVolume, lastHourVolumeQuery, volumeOverTimeQuery } from '../queries'
 import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
 import { parseUnits } from '@ethersproject/units'
-import { getMantissaBigNumber, bnStringToDecimal, formatRes, getBlocks, stringToBn } from '../util'
+import { getMantissaBigNumber, bnStringToDecimal, formatRes, stringToBn } from '../util'
 import { TimePeriod } from '../types'
 import { OpConfig } from '../config'
 

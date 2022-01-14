@@ -185,7 +185,7 @@ paths:
                                         $ref: '#/components/schemas/nft'
                                     status:
                                         $ref: '#/components/schemas/status'
-    /lending/supply:
+    /markets/supply:
         get:
             summary: Get outstanding supply in Banker Joe
             tags:
@@ -203,7 +203,7 @@ paths:
                                         example: '30009819328012'
                                     status:
                                         $ref: '#/components/schemas/status'
-    /lending/borrow:
+    /markets/borrow:
         get:
             summary: Get outstanding borrow in Banker Joe
             tags:
@@ -221,6 +221,491 @@ paths:
                                         example: '30009819328012'
                                     status:
                                         $ref: '#/components/schemas/status'
+    /markets/supply/{marketAddress}:
+        get:
+            summary: Get outstanding supply for a market in Banker Joe
+            tags:
+                - bank
+            parameters:
+                - name: marketAddress
+                  in: path
+                  required: true
+                  description: Address of market
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /markets/borrow/{marketAddress}:
+        get:
+            summary: Get outstanding borrow for a market in Banker Joe
+            tags:
+                - bank
+            parameters:
+                - name: marketAddress
+                  in: path
+                  required: true
+                  description: Address of market
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /markets/supply/{marketAddress}/apy:
+        get:
+            summary: Get supply APY for a market in Banker Joe
+            tags:
+                - bank
+            parameters:
+                - name: marketAddress
+                  in: path
+                  required: true
+                  description: Address of market
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /markets/borrow/{marketAddress}/apy:
+        get:
+            summary: Get borrow APY for a market in Banker Joe
+            tags:
+                - bank
+            parameters:
+                - name: marketAddress
+                  in: path
+                  required: true
+                  description: Address of market
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /supply/user/{userAddress}:
+        get:
+            summary: Outstanding supply of user
+            tags:
+                - bank
+            parameters:
+                - name: userAddress
+                  in: path
+                  required: true
+                  description: Address of user
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /borrow/user/{userAddress}:
+        get:
+            summary: Outstanding borrow of user
+            tags:
+                - bank
+            parameters:
+                - name: userAddress
+                  in: path
+                  required: true
+                  description: Address of user
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /{userAddress}/net/apy:
+        get:
+            summary: Net APY of user with all positions
+            tags:
+                - bank
+            parameters:
+                - name: userAddress
+                  in: path
+                  required: true
+                  description: Address of user
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /{poolId}/liquidity:
+        get:
+            summary: Liquidity/TVL of TraderJoe farm pool
+            tags:
+                - pool
+            parameters:
+                - name: poolId
+                  in: path
+                  required: true
+                  description: ID of pool
+                  example: '3'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+     /{poolId}/apr:
+        get:
+            summary: APR of TraderJoe farm pool
+            tags:
+                - pool
+            parameters:
+                - name: poolId
+                  in: path
+                  required: true
+                  description: ID of pool
+                  example: '3'
+                  schema:
+                    type: string
+                - name: period
+                  in: query 
+                  required: false
+                  example: '1mo'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+     /{poolId}/apr/bonus:
+        get:
+            summary: Bonus APR of TraderJoe farm pool
+            tags:
+                - pool
+            parameters:
+                - name: poolId
+                  in: path
+                  required: true
+                  description: ID of pool
+                  example: '3'
+                  schema:
+                    type: string
+                - name: period
+                  in: query 
+                  required: false
+                  example: '1mo'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /{pairAddress}/liquidity:
+        get:
+            summary: TVL/Liquidity of TraderJoe pair
+            tags:
+                - pair
+            parameters:
+                - name: pairAddress
+                  in: path
+                  required: true
+                  description: Address of pair
+                  example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /{pairAddress}/volume:
+        get:
+            summary: Volume of TraderJoe pair
+            tags:
+                - pair
+            parameters:
+                - name: pairAddress
+                  in: path
+                  required: true
+                  description: Address of pair
+                  example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
+                  schema:
+                    type: string
+                - name: period
+                  in: query 
+                  required: false
+                  example: '1mo'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /{pairAddress}/fees:
+        get:
+            summary: Fees of TraderJoe pair
+            tags:
+                - pair
+            parameters:
+                - name: pairAddress
+                  in: path
+                  required: true
+                  description: Address of pair
+                  example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
+                  schema:
+                    type: string
+                - name: period
+                  in: query 
+                  required: false
+                  example: '1mo'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /{pairAddress}/apr:
+        get:
+            summary: APR of TraderJoe pair
+            tags:
+                - pair
+            parameters:
+                - name: pairAddress
+                  in: path
+                  required: true
+                  description: Address of pair
+                  example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
+                  schema:
+                    type: string
+                - name: period
+                  in: query 
+                  required: false
+                  example: '1mo'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /metrics/tvl:
+        get:
+            summary: TVL on all of Trader Joe
+            tags:
+                - metrics
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /metrics/volume:
+        get:
+            summary: Volume on all of Trader Joe
+            tags:
+                - metrics
+            parameters:
+                - name: period
+                  in: query 
+                  required: false
+                  example: '1mo'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /price/usd/{tokenAddress}:
+        get:
+            summary: USD price of token on Trader Joe
+            tags:
+                - price
+            parameters:
+                - name: tokenAddress
+                  in: path
+                  required: true
+                  description: Address of token
+                  example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    /price/avax/{tokenAddress}:
+        get:
+            summary: AVAX price of token on Trader Joe
+            tags:
+                - price
+            parameters:
+                - name: tokenAddress
+                  in: path
+                  required: true
+                  description: Address of token
+                  example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
+                  schema:
+                    type: string
+            responses:
+                '200':
+                    description: OK
+                    content:
+                        application/json:
+                            schema:
+                                type: object
+                                properties:
+                                    data:
+                                        type: string
+                                        example: '30009819328012'
+                                    status:
+                                        $ref: '#/components/schemas/status'
+    
+
+
 
 components:
     schemas:
