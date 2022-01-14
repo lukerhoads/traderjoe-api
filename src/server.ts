@@ -15,6 +15,7 @@ import {
     NFTController,
     BankerController,
     MetricsController,
+    StakeController,
 } from './routes'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
@@ -67,7 +68,7 @@ export class Server {
         this.controllers.push(nftController)
 
         const pairController = new PairController(
-            this.config.opCfg,
+            this.config.,
             priceController,
         )
         await pairController.init()
@@ -97,6 +98,15 @@ export class Server {
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
         this.controllers.push(metricsController)
+
+        const stakeController = new StakeController(
+            this.config.opCfg,
+            metricsController,
+            priceController,
+        )
+        await stakeController.init()
+        versionRouter.use('/staking', stakeController.apiRouter)
+        this.controllers.push(stakeController)
 
         versionRouter.use(
             (err: Error, req: Request, res: Response, next: NextFunction) => {

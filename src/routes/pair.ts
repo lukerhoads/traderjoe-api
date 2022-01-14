@@ -33,10 +33,7 @@ export class PairController {
 
     private hardRefreshInterval: NodeJS.Timer
 
-    constructor(
-        config: OpConfig,
-        priceController: PriceController,
-    ) {
+    constructor(config: OpConfig, priceController: PriceController) {
         this.config = config
         this.priceController = priceController
         this.chefGraphClient = new ApolloClient<NormalizedCacheObject>({
@@ -103,7 +100,10 @@ export class PairController {
     }
 
     // Need to make this contract stuff
-    protected async getPairVolume(pairAddress: string, period: TimePeriod = '1d') {
+    protected async getPairVolume(
+        pairAddress: string,
+        period: TimePeriod = '1d'
+    ) {
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
@@ -144,12 +144,18 @@ export class PairController {
         return volumeUSDBn.sub(periodVolumeUSDBn)
     }
 
-    protected async getPairFees(pairAddress: string, period: TimePeriod = '1d') {
+    protected async getPairFees(
+        pairAddress: string,
+        period: TimePeriod = '1d'
+    ) {
         const pairVolume = await this.getPairVolume(pairAddress, period)
         return pairVolume.mul(FEE_RATE).div(BigNumberMantissa)
     }
 
-    protected async getPairApr(pairAddress: string, samplePeriod: TimePeriod = '1d') {
+    protected async getPairApr(
+        pairAddress: string,
+        samplePeriod: TimePeriod = '1d'
+    ) {
         // Move away from 1d hardcode
         const pairFees = await this.getPairFees(pairAddress, samplePeriod)
         const pairLiquidity = await this.getPairLiquidity(pairAddress)
@@ -159,7 +165,10 @@ export class PairController {
         return pairFees.mul(BigNumberMantissa).div(pairLiquidity)
     }
 
-    protected async getPairAprGraph(pairAddress: string, samplePeriod: TimePeriod = '1d') {
+    protected async getPairAprGraph(
+        pairAddress: string,
+        samplePeriod: TimePeriod = '1d'
+    ) {
         // This is unnecessary, find how to optimize this with cache
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
@@ -218,7 +227,10 @@ export class PairController {
             const pairAddress = req.params.pairAddress.toLowerCase()
             const samplePeriod = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPairAprGraph(pairAddress, samplePeriod)
+                const poolApr = await this.getPairAprGraph(
+                    pairAddress,
+                    samplePeriod
+                )
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)

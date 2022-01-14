@@ -61,3 +61,32 @@ export const convertPeriod = (
             return roiPerSec.mul(3600 * 24 * 30 * 12)
     }
 }
+
+export const rateToYear = (value: PeriodRate) => {
+    switch (value.period) {
+        case '1s':
+            return value.rate.mul(3600 * 24 * 365)
+        case '1m':
+            return value.rate.mul(60 * 24 * 365)
+        case '1h':
+            return value.rate.mul(24 * 365)
+        case '1d':
+            return value.rate.mul(365)
+        case '1w':
+            return value.rate.mul(52)
+        case '1mo':
+            return value.rate.mul(12)
+        case '1y':
+            return value.rate
+    }
+}
+
+const periodOrder: TimePeriod = ['1m', '1h', '1d', '1w', '1mo', '1y']
+
+export const periodGt = (period1: TimePeriod, period2: TimePeriod) => {
+    return periodOrder.indexOf(period1) > periodOrder.indexOf(period2)
+}
+
+export const periodLt = (period1: TimePeriod, period2: TimePeriod) => {
+    return periodOrder.indexOf(period1) < periodOrder.indexOf(period2)
+}

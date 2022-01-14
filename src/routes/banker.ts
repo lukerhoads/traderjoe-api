@@ -10,6 +10,7 @@ import {
     formatRes,
     convertPeriod,
     secondsToPeriod,
+    rateToYear,
 } from '../util'
 import { OpConfig } from '../config'
 import { Controller } from './controller'
@@ -158,56 +159,42 @@ export class BankerController implements Controller {
         return adjustedBorrow
     }
 
-    protected async getSupplyApyByMarket(
-        marketAddress: string,
-        period: TimePeriod = '1y'
-    ) {
+    protected async getSupplyApyByMarket(marketAddress: string) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
             throw new Error('Invalid market address provided.')
         }
 
         if (this.cachedMarketSupplyApy[marketAddress]) {
-            if (this.cachedMarketSupplyApy[marketAddress].period === period) {
-                return this.cachedMarketSupplyApy[marketAddress].rate
-            }
-
-            return convertPeriod(
-                this.cachedMarketSupplyApy[marketAddress],
-                period
-            )
+            return this.cachedMarketSupplyApy[marketAddress]
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const supplyRatePerSecond = await customContract.supplyRatePerSecond()
-        let rate = secondsToPeriod(supplyRatePerSecond, period)
-        this.cachedMarketSupplyApy[marketAddress] = { period, rate }
+        let rate = rateToYear({
+            period: '1s',
+            rate: supplyRatePerSecond,
+        })
+        this.cachedMarketSupplyApy[marketAddress] = rate
         return rate
     }
 
-    protected async getBorrowApyByMarket(
-        marketAddress: string,
-        period: TimePeriod = '1y'
-    ) {
+    protected async getBorrowApyByMarket(marketAddress: string) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
             throw new Error('Invalid market address provided.')
         }
 
-        if (this.cachedMarketSupplyApy[marketAddress]) {
-            if (this.cachedMarketBorrowApy[marketAddress].period === period) {
-                return this.cachedMarketBorrowApy[marketAddress].rate
-            }
-
-            return convertPeriod(
-                this.cachedMarketSupplyApy[marketAddress],
-                period
-            )
+        if (this.cachedMarketBorrowApy[marketAddress]) {
+            return this.cachedMarketBorrowApy[marketAddress]
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const borrowRatePerSecond = await customContract.borrowRatePerSecond()
-        let rate = secondsToPeriod(borrowRatePerSecond, period)
-        this.cachedMarketBorrowApy[marketAddress] = { period: period, rate }
-        return rate
+        let apr = rateToYear({
+            period: '1s',
+            rate: borrowRatePerSecond,
+        })
+        this.cachedMarketBorrowApy[marketAddress] = apr
+        return apr
     }
 
     protected async getUserSupply(user: string) {

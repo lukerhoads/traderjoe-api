@@ -5,12 +5,22 @@ import {
     InMemoryCache,
     NormalizedCacheObject,
 } from '@apollo/client/core'
-import { getExchangeTvlQuery, lastDayVolume, lastHourVolumeQuery, volumeOverTimeQuery } from '../queries'
+import {
+    getExchangeTvlQuery,
+    lastDayVolume,
+    lastHourVolumeQuery,
+    volumeOverTimeQuery,
+} from '../queries'
 import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
 import { parseUnits } from '@ethersproject/units'
-import { getMantissaBigNumber, bnStringToDecimal, formatRes, stringToBn } from '../util'
+import {
+    getMantissaBigNumber,
+    bnStringToDecimal,
+    formatRes,
+    stringToBn,
+} from '../util'
 import { TimePeriod } from '../types'
 import { OpConfig } from '../config'
 
@@ -127,47 +137,51 @@ export class MetricsController {
         return exchangeTvl.add(marketTvl)
     }
 
-    public async getVolume(period: TimePeriod = "1d") {
+    public async getVolume(period: TimePeriod = '1d') {
         if (this.cachedVolume[period]) {
             return this.cachedVolume[period]!
         }
 
-        if (period === "1d") {
-            const { data: { dayDatas } } = await this.exchangeGraphClient.query({
+        if (period === '1d') {
+            const {
+                data: { dayDatas },
+            } = await this.exchangeGraphClient.query({
                 query: lastDayVolume,
-            }) 
+            })
 
             return stringToBn(dayDatas[0].volumeUSD, 18)
         }
 
         let dayMultiplier = 1
         switch (period) {
-            case "1s":
-                throw new Error("Unable to get one second data")
-            case "1m":
-                throw new Error("Unable to get one minute data")
-            case "1h":
+            case '1s':
+                throw new Error('Unable to get one second data')
+            case '1m':
+                throw new Error('Unable to get one minute data')
+            case '1h':
                 // This hourdata entity query isn't working
                 // const { data: { hourDatas } } = await this.exchangeGraphClient.query({
                 //     query: lastHourVolumeQuery,
                 // })
 
                 // return stringToBn(hourDatas[0].volumeUSD, 18)
-                throw new Error("Unable to get hour data")
-            case "1w":
+                throw new Error('Unable to get hour data')
+            case '1w':
                 dayMultiplier = 7
-            case "1mo":
+            case '1mo':
                 dayMultiplier = 30
-            case "1y":
+            case '1y':
                 dayMultiplier = 365
         }
 
-        const { data: { dayDatas } } = await this.exchangeGraphClient.query({
+        const {
+            data: { dayDatas },
+        } = await this.exchangeGraphClient.query({
             query: volumeOverTimeQuery,
-            variables: { days: dayMultiplier } 
+            variables: { days: dayMultiplier },
         })
 
-        let volumeSum = BigNumber.from("0")
+        let volumeSum = BigNumber.from('0')
         for (let dayData of dayDatas) {
             volumeSum = volumeSum.add(stringToBn(dayData.volumeUSD, 18))
         }

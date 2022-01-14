@@ -176,7 +176,10 @@ export class PoolController {
 
     // mixing graphql with contracts, prefer to go either or because of consistency and optimization
     // Please revisit all of this in the optimization run
-    protected async getPoolApr(poolId: string, samplePeriod: TimePeriod = '1y') {
+    protected async getPoolApr(
+        poolId: string,
+        samplePeriod: TimePeriod = '1y'
+    ) {
         if (this.cachedPoolApr[poolId]) {
             if (this.cachedPoolApr[poolId].period != samplePeriod) {
                 return convertPeriod(this.cachedPoolApr[poolId], samplePeriod)
@@ -241,7 +244,10 @@ export class PoolController {
         return balanceUSD
     }
 
-    protected async getPoolBonus(poolId: string, samplePeriod: TimePeriod = '1y') {
+    protected async getPoolBonus(
+        poolId: string,
+        samplePeriod: TimePeriod = '1y'
+    ) {
         if (this.cachedPoolBonusApr[poolId]) {
             if (this.cachedPoolApr[poolId].period != samplePeriod) {
                 return convertPeriod(this.cachedPoolApr[poolId], samplePeriod)

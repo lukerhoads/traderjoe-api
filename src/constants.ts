@@ -91,7 +91,9 @@ export namespace TestnetAddress {
 
     export const JOETROLLER_ADDRESS =
         '0xdc13687554205e5b89ac783db14bb5bba4a1edac'.toLowerCase() // proxy
-    export const JAVAX_ADDRESS = '0xc22f01ddc8010ee05574028528614634684ec29e'.toLowerCase()
+    export const JAVAX_ADDRESS =
+        '0xc22f01ddc8010ee05574028528614634684ec29e'.toLowerCase()
 
-    export const GOHM_REWARD_ADDRESS = '0x99ad2a9a0d4a15d861c0b60c7df8965d1b3e18d8'
+    export const GOHM_REWARD_ADDRESS =
+        '0x99ad2a9a0d4a15d861c0b60c7df8965d1b3e18d8'
 }
