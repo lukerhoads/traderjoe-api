@@ -1,2 +1,2 @@
 export * from './market'
-export * from './time-period'
+export * from './period'

@@ -6,7 +6,7 @@ import {
 } from '@apollo/client/core'
 import { BigNumber, Contract, ethers } from 'ethers'
 
-import { Address } from '../constants'
+import { Address, getAddress } from '../constants'
 import { getRandomProvider } from '../provider'
 import { poolById, poolByPair } from '../queries'
 import { PriceController } from './price'
@@ -40,7 +40,6 @@ const JoeFactoryContract = new ethers.Contract(
     getRandomProvider()
 )
 
-// Pool (or farm) controller. Where you stake your LP tokens
 export class PoolController {
     private config: OpConfig
 
@@ -85,7 +84,7 @@ export class PoolController {
         this.temporalRefreshInterval = setInterval(() => {})
     }
 
-    async init() {
+    public async init() {
         this.hardRefreshInterval = setInterval(async () => {
             this.cachedPoolTvl = {}
             this.cachedPairLiquidity = {}
@@ -97,7 +96,7 @@ export class PoolController {
         }, this.config.temporalRefreshTimeout)
     }
 
-    async getPoolByPair(pair: string) {
+    protected async getPoolByPair(pair: string) {
         const { data: pools } = await this.masterChefGraphClient.query({
             query: poolByPair,
             variables: { pair },
@@ -106,7 +105,7 @@ export class PoolController {
         return pools[0]
     }
 
-    async getPoolById(id: string) {
+    protected async getPoolById(id: string) {
         const {
             data: { pools },
         } = await this.masterChefGraphClient.query({
@@ -118,7 +117,7 @@ export class PoolController {
     }
 
     // Gets pool pair (only pair) directly through contract. Most likely slower than GraphQL, but would switch this to completely contract dependent.
-    async getPoolPairByIdContract(id: string) {
+    protected async getPoolPairByIdContract(id: string) {
         const poolInfo = await MasterChefContract.poolInfo(id)
 
         const lpTokenContract = new ethers.Contract(
@@ -133,9 +132,7 @@ export class PoolController {
         return pair
     }
 
-    // Gets totalSupply of joe LP token
-    // Example: https://snowtrace.io/token/0x62cf16bf2bc053e7102e2ac1dee5029b94008d99#readContract
-    async getPairTotalSupply(pair: string) {
+    protected async getPairTotalSupply(pair: string) {
         const customContract = this.pairContract.attach(pair)
         const totalSupply = await customContract.totalSupply()
         const balance = await customContract.balanceOf(
@@ -147,7 +144,7 @@ export class PoolController {
         }
     }
 
-    async getPairLiquidity(pairAddress: string) {
+    protected async getPairLiquidity(pairAddress: string) {
         if (this.cachedPairLiquidity[pairAddress]) {
             return this.cachedPairLiquidity[pairAddress]
         }
@@ -179,10 +176,10 @@ export class PoolController {
 
     // mixing graphql with contracts, prefer to go either or because of consistency and optimization
     // Please revisit all of this in the optimization run
-    async getPoolApr(poolId: string, period: TimePeriod = '1y') {
+    protected async getPoolApr(poolId: string, samplePeriod: TimePeriod = '1y') {
         if (this.cachedPoolApr[poolId]) {
-            if (this.cachedPoolApr[poolId].period != period) {
-                return convertPeriod(this.cachedPoolApr[poolId], period)
+            if (this.cachedPoolApr[poolId].period != samplePeriod) {
+                return convertPeriod(this.cachedPoolApr[poolId], samplePeriod)
             }
 
             return this.cachedPoolApr[poolId].period
@@ -208,12 +205,12 @@ export class PoolController {
         // Get it in dollar amounts and divide by balanceUSD to get percentage
         const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD)
 
-        const rate = secondsToPeriod(roiPerSec, period)
-        this.cachedPoolApr[poolId] = { period, rate }
+        const rate = secondsToPeriod(roiPerSec, samplePeriod)
+        this.cachedPoolApr[poolId] = { samplePeriod, rate }
         return rate
     }
 
-    async getPair(token0: string, token1: string) {
+    protected async getPair(token0: string, token1: string) {
         if (token0 > token1) {
             return await JoeFactoryContract.getPair(token0, token1)
         } else {
@@ -221,7 +218,7 @@ export class PoolController {
         }
     }
 
-    async getPoolTvl(poolId: string) {
+    protected async getPoolTvl(poolId: string) {
         if (this.cachedPoolTvl[poolId]) {
             return this.cachedPoolTvl[poolId]
         }
@@ -244,10 +241,10 @@ export class PoolController {
         return balanceUSD
     }
 
-    async getPoolBonus(poolId: string, period: TimePeriod = '1y') {
+    protected async getPoolBonus(poolId: string, samplePeriod: TimePeriod = '1y') {
         if (this.cachedPoolBonusApr[poolId]) {
-            if (this.cachedPoolApr[poolId].period != period) {
-                return convertPeriod(this.cachedPoolApr[poolId], period)
+            if (this.cachedPoolApr[poolId].period != samplePeriod) {
+                return convertPeriod(this.cachedPoolApr[poolId], samplePeriod)
             }
 
             return this.cachedPoolApr[poolId].rate
@@ -273,8 +270,8 @@ export class PoolController {
         // Get it in dollar amounts and divide by balanceUSD to get percentage
         const roiPerSec = tokenPerSec.mul(rewardTokenPrice).div(balanceUSD)
 
-        let rate = secondsToPeriod(roiPerSec, period)
-        this.cachedPoolBonusApr[poolId] = { period, rate }
+        let rate = secondsToPeriod(roiPerSec, samplePeriod)
+        this.cachedPoolBonusApr[poolId] = { samplePeriod, rate }
         return rate
     }
 
@@ -295,9 +292,9 @@ export class PoolController {
 
         router.get('/:poolId/apr', async (req, res, next) => {
             const poolId = req.params.poolId
-            const period = req.query.period as TimePeriod
+            const samplePeriod = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPoolApr(poolId, period)
+                const poolApr = await this.getPoolApr(poolId, samplePeriod)
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)
@@ -306,9 +303,9 @@ export class PoolController {
 
         router.get('/:poolId/apr/bonus', async (req, res, next) => {
             const poolId = req.params.poolId
-            const period = req.query.period as TimePeriod
+            const samplePeriod = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPoolBonus(poolId, period)
+                const poolApr = await this.getPoolBonus(poolId, samplePeriod)
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)
@@ -318,7 +315,7 @@ export class PoolController {
         return router
     }
 
-    async close() {
+    public async close() {
         clearInterval(this.hardRefreshInterval)
         clearInterval(this.temporalRefreshInterval)
     }

@@ -60,12 +60,12 @@ export class PairController {
         this.hardRefreshInterval = setInterval(() => {})
     }
 
-    async init() {
+    public async init() {
         this.hardRefreshInterval = setInterval(async () => {},
         this.config.poolRefreshTimeout)
     }
 
-    async topPairAddresses() {
+    protected async topPairAddresses() {
         const {
             data: { pools },
         } = await this.chefGraphClient.query({
@@ -75,7 +75,7 @@ export class PairController {
         return pools.map((pool: { pair: string }) => pool.pair)
     }
 
-    async getPairLiquidity(pairAddress: string) {
+    protected async getPairLiquidity(pairAddress: string) {
         // Somehow validate that pairAddress is a valid pair
         const customContract = this.pairContract.attach(pairAddress)
         const reserves = await customContract.getReserves()
@@ -103,7 +103,7 @@ export class PairController {
     }
 
     // Need to make this contract stuff
-    async getPairVolume(pairAddress: string, period: TimePeriod = '1d') {
+    protected async getPairVolume(pairAddress: string, period: TimePeriod = '1d') {
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
@@ -144,18 +144,14 @@ export class PairController {
         return volumeUSDBn.sub(periodVolumeUSDBn)
     }
 
-    async getPairFees(pairAddress: string, period: TimePeriod = '1d') {
+    protected async getPairFees(pairAddress: string, period: TimePeriod = '1d') {
         const pairVolume = await this.getPairVolume(pairAddress, period)
         return pairVolume.mul(FEE_RATE).div(BigNumberMantissa)
     }
 
-    // These all depend on the period over which we are collecting data.
-    // Perhaps add up to four months? This would make it more historically accurate but
-    // then again would not be future-proof because many pools were just getting started
-    // then
-    async getPairApr(pairAddress: string, period: TimePeriod = '1d') {
+    protected async getPairApr(pairAddress: string, samplePeriod: TimePeriod = '1d') {
         // Move away from 1d hardcode
-        const pairFees = await this.getPairFees(pairAddress, period)
+        const pairFees = await this.getPairFees(pairAddress, samplePeriod)
         const pairLiquidity = await this.getPairLiquidity(pairAddress)
         // Scale factor is 12 right now, this means that
         // we only fetch one month fees right now (because Avalanche has not been live for over a year)
@@ -163,8 +159,7 @@ export class PairController {
         return pairFees.mul(BigNumberMantissa).div(pairLiquidity)
     }
 
-    // Testing out another method here (from analytics)
-    async getPairAprGraph(pairAddress: string, period: TimePeriod = '1d') {
+    protected async getPairAprGraph(pairAddress: string, samplePeriod: TimePeriod = '1d') {
         // This is unnecessary, find how to optimize this with cache
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
@@ -174,7 +169,7 @@ export class PairController {
         })
 
         const pair = pairData.pair
-        const periodFees = await this.getPairFees(pairAddress, period)
+        const periodFees = await this.getPairFees(pairAddress, samplePeriod)
         const reserveUSD = stringToBn(pair.reserveUSD, 18)
         return periodFees.mul(BigNumberMantissa).div(reserveUSD)
     }
@@ -221,9 +216,9 @@ export class PairController {
 
         router.get('/:pairAddress/apr', async (req, res, next) => {
             const pairAddress = req.params.pairAddress.toLowerCase()
-            const period = req.query.period as TimePeriod
+            const samplePeriod = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPairAprGraph(pairAddress, period)
+                const poolApr = await this.getPairAprGraph(pairAddress, samplePeriod)
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)
@@ -233,7 +228,7 @@ export class PairController {
         return router
     }
 
-    async close() {
+    public async close() {
         clearInterval(this.hardRefreshInterval)
     }
 }

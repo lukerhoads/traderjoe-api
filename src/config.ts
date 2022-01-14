@@ -15,6 +15,7 @@ export interface OpConfig {
     bankRefreshTimeout: number
     metricsRefreshTimeout: number
     poolRefreshTimeout: number
+    stakeRefreshTimeout: number
 
     temporalRefreshTimeout: number
 }
@@ -33,6 +34,7 @@ const opConfig: OpConfig = {
     bankRefreshTimeout: 60000,
     metricsRefreshTimeout: 60000,
     poolRefreshTimeout: 60000,
+    stakeRefreshTimeout: 60000,
 
     temporalRefreshTimeout: 9e4, // About a day
 }

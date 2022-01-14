@@ -4,7 +4,7 @@ import { formatRes } from '../util'
 export class NFTController {
     constructor() {}
 
-    async init() {}
+    public async init() {}
 
     get apiRouter() {
         const router = express.Router()
@@ -33,5 +33,5 @@ export class NFTController {
         return router
     }
 
-    async close() {}
+    public async close() {}
 }

@@ -7,14 +7,19 @@ export const BigNumber8 = BigNumber.from('100000000')
 export const BigNumber6 = BigNumber.from('1000000')
 export const BigNumber24 = BigNumber.from('1000000000000000000000000')
 
-// Use this for testnet configuration
-function getAddress() {
-    return process.env.NETWORK === 'mainnet' ? Address : TestnetAddress
+// Use this for testnet configuration, but there is none yet
+export const getAddress = () => {
+    // return process.env.NETWORK === 'mainnet' ? Address : TestnetAddress
+    return Address
 }
 
-export const FEE_RATE = BigNumber.from('2500000000000000')
+// export const Address = process.env.NETWORK == 'mainnet' ? MainnetAddress : TestnetAddress
+export const Address = MainnetAddress
 
-export namespace Address {
+export const FEE_RATE = BigNumber.from('2500000000000000')
+export const STAKING_FEE_RATE = BigNumber.from('500000000000000')
+
+export namespace MainnetAddress {
     export const JOE_ADDRESS = '0x6e84a6216ea6dacc71ee8e6b0a5b7322eebc0fdd'
     export const JOE_FACTORY_ADDRESS =
         '0x9ad6c38be94206ca50bb0d90783181662f0cfa10'
@@ -48,12 +53,13 @@ export namespace Address {
     export const JAVAX_ADDRESS = '0xc22f01ddc8010ee05574028528614634684ec29e'
 
     export const JOE_MASTER_CHEF_ADDRESS =
-        '0x188bED1968b795d5c9022F6a0bb5931Ac4c18F00'
+        '0x188bed1968b795d5c9022f6a0bb5931ac4c18f00'
 
     export const GOHM_REWARD_ADDRESS =
-        '0x99Ad2A9A0d4A15d861C0b60c7df8965D1B3e18D8'
+        '0x99ad2a9a0d4a15d861c0b60c7df8965d1b3e18d8'
 }
 
+// No testnet documentation yet
 export namespace TestnetAddress {
     export const JOE_ADDRESS = '0x6e84a6216ea6dacc71ee8e6b0a5b7322eebc0fdd'
     export const JOE_FACTORY_ADDRESS =
@@ -84,6 +90,8 @@ export namespace TestnetAddress {
     ]
 
     export const JOETROLLER_ADDRESS =
-        '0xdc13687554205e5b89ac783db14bb5bba4a1edac' // proxy
-    export const JAVAX_ADDRESS = '0xc22f01ddc8010ee05574028528614634684ec29e'
+        '0xdc13687554205e5b89ac783db14bb5bba4a1edac'.toLowerCase() // proxy
+    export const JAVAX_ADDRESS = '0xc22f01ddc8010ee05574028528614634684ec29e'.toLowerCase()
+
+    export const GOHM_REWARD_ADDRESS = '0x99ad2a9a0d4a15d861c0b60c7df8965d1b3e18d8'
 }

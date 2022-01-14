@@ -46,7 +46,7 @@ export class MetricsController {
     }
 
     // Event subscriptions
-    async init() {
+    public async init() {
         await this.resetMetrics()
 
         this.hardRefreshInterval = setInterval(async () => {
@@ -54,7 +54,7 @@ export class MetricsController {
         }, this.config.metricsRefreshTimeout)
     }
 
-    async resetMetrics() {
+    protected async resetMetrics() {
         const [tvl] = await Promise.all([this.getTvl()])
 
         this.tvl = tvl
@@ -68,7 +68,6 @@ export class MetricsController {
             res.send(formatRes(bnStringToDecimal(tvlString, 18)))
         })
 
-        // TODO
         router.get('/volume', async (req, res, next) => {
             const period = req.query.period as TimePeriod
             const volume = await this.getVolume(period)
@@ -78,8 +77,7 @@ export class MetricsController {
         return router
     }
 
-    // Adds exchange and bank TVL
-    async getTvl() {
+    protected async getTvl() {
         const {
             data: { factories },
         } = await this.exchangeGraphClient.query({
@@ -129,7 +127,7 @@ export class MetricsController {
         return exchangeTvl.add(marketTvl)
     }
 
-    async getVolume(period: TimePeriod = "1d") {
+    public async getVolume(period: TimePeriod = "1d") {
         if (this.cachedVolume[period]) {
             return this.cachedVolume[period]!
         }
@@ -156,6 +154,8 @@ export class MetricsController {
 
                 // return stringToBn(hourDatas[0].volumeUSD, 18)
                 throw new Error("Unable to get hour data")
+            case "1w":
+                dayMultiplier = 7
             case "1mo":
                 dayMultiplier = 30
             case "1y":
@@ -175,7 +175,7 @@ export class MetricsController {
         return volumeSum
     }
 
-    async close() {
+    public async close() {
         clearInterval(this.hardRefreshInterval)
     }
 }

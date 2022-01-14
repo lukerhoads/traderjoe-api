@@ -1,6 +1,6 @@
 import express from 'express'
 import { getRandomProvider } from '../provider'
-import { Address, BigNumberMantissa } from '../constants'
+import { Address, BigNumberMantissa, getAddress } from '../constants'
 import { BigNumber, Contract, ethers } from 'ethers'
 
 import JoeBarContractABI from '../../abi/JoeBar.json'
@@ -129,7 +129,7 @@ export class PriceController {
         return contract
     }
 
-    protected async getAvaxPrice() {
+    public async getAvaxPrice() {
         if (this.cachedPrices[Address.WAVAX_ADDRESS]) {
             return this.cachedPrices[Address.WAVAX_ADDRESS]
         }
@@ -159,7 +159,7 @@ export class PriceController {
         return avaxPrice
     }
 
-    protected async getXJoePrice(derived: boolean) {
+    public async getXJoePrice(derived: boolean) {
         if (this.cachedPrices[Address.XJOE_ADDRESS]) {
             return this.cachedPrices[Address.XJOE_ADDRESS]
         }

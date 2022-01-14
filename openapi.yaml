@@ -436,6 +436,7 @@ paths:
                   schema:
                     type: string
                 - name: period
+                  description: Sample period to get APR
                   in: query 
                   required: false
                   example: '1mo'
@@ -468,6 +469,7 @@ paths:
                   schema:
                     type: string
                 - name: period
+                  description: Sample period to get APR
                   in: query 
                   required: false
                   example: '1mo'
@@ -590,6 +592,7 @@ paths:
                   schema:
                     type: string
                 - name: period
+                  description: Sample period to get APR
                   in: query 
                   required: false
                   example: '1mo'

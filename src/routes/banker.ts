@@ -1,6 +1,6 @@
 import { BigNumber, Contract, ethers } from 'ethers'
 import express from 'express'
-import { TimePeriod } from '../types'
+import { PeriodRate, TimePeriod } from '../types'
 import { Address, BigNumberMantissa, BigNumberZero } from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
@@ -23,11 +23,6 @@ const JoetrollerContract = new ethers.Contract(
     JoetrollerABI,
     getRandomProvider()
 )
-
-export interface PeriodRate {
-    period: TimePeriod
-    rate: BigNumber
-}
 
 export class BankerController implements Controller {
     private config: OpConfig
@@ -70,20 +65,27 @@ export class BankerController implements Controller {
         this.hardRefreshInterval = setInterval(() => {})
     }
 
-    async init() {
+    public async init() {
         const markets = await JoetrollerContract.getAllMarkets()
         this.markets = markets.map((market: string) => market.toLowerCase())
         await this.resetTotals()
         this.hardRefreshInterval = setInterval(async () => {
-            this.cachedMarketSupply = {}
-            this.cachedMarketBorrow = {}
-            this.cachedMarketSupplyApy = {}
-            this.cachedMarketBorrowApy = {}
+            this.clearCache()
             await this.resetTotals()
         }, this.config.bankRefreshTimeout)
     }
 
-    async resetTotals() {
+    private clearCache() {
+        this.cachedMarketSupply = {}
+        this.cachedMarketBorrow = {}
+        this.cachedUserSupply = {}
+        this.cachedUserBorrow = {}
+        this.cachedMarketSupplyApy = {}
+        this.cachedMarketBorrowApy = {}
+        this.cachedUserNetApy = {}
+    }
+
+    protected async resetTotals() {
         let tempTotalSupply = BigNumber.from('0')
         let tempTotalBorrow = BigNumber.from('0')
         await Promise.all(
@@ -99,7 +101,7 @@ export class BankerController implements Controller {
         this.totalBorrow = tempTotalBorrow
     }
 
-    async getSupplyByMarket(marketAddress: string) {
+    protected async getSupplyByMarket(marketAddress: string) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
             throw new Error('Invalid market address provided.')
         }
@@ -133,7 +135,7 @@ export class BankerController implements Controller {
         return totalSupply.div(divisor)
     }
 
-    async getBorrowByMarket(marketAddress: string) {
+    protected async getBorrowByMarket(marketAddress: string) {
         if (!this.markets.includes(marketAddress.toLowerCase())) {
             throw new Error('Invalid market address provided.')
         }
@@ -156,8 +158,7 @@ export class BankerController implements Controller {
         return adjustedBorrow
     }
 
-    // Debug these later, and also setup event listeners. They do not change often
-    async getSupplyApyByMarket(
+    protected async getSupplyApyByMarket(
         marketAddress: string,
         period: TimePeriod = '1y'
     ) {
@@ -183,7 +184,7 @@ export class BankerController implements Controller {
         return rate
     }
 
-    async getBorrowApyByMarket(
+    protected async getBorrowApyByMarket(
         marketAddress: string,
         period: TimePeriod = '1y'
     ) {
@@ -209,7 +210,7 @@ export class BankerController implements Controller {
         return rate
     }
 
-    async getUserSupply(user: string) {
+    protected async getUserSupply(user: string) {
         if (this.cachedUserSupply[user]) {
             return this.cachedUserSupply[user]
         }
@@ -253,7 +254,7 @@ export class BankerController implements Controller {
         return userSupply
     }
 
-    async getUserBorrow(user: string) {
+    protected async getUserBorrow(user: string) {
         if (this.cachedUserBorrow[user]) {
             return this.cachedUserBorrow[user]
         }
@@ -298,7 +299,7 @@ export class BankerController implements Controller {
         return userBorrow
     }
 
-    async getUserNetApy(user: string, period: TimePeriod = '1y') {
+    protected async getUserNetApy(user: string, period: TimePeriod = '1y') {
         if (this.cachedUserNetApy[user]) {
             return this.cachedUserNetApy[user]
         }
@@ -456,7 +457,7 @@ export class BankerController implements Controller {
         return router
     }
 
-    async close() {
+    public async close() {
         clearInterval(this.hardRefreshInterval)
     }
 }
