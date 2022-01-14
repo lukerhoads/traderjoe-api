@@ -17,32 +17,34 @@ import {
     getMantissaBigNumber,
     stringToBn,
 } from '../util'
+import { OpConfig } from '../config'
 
 import JoePairABI from '../../abi/JoePair.json'
 import ERC20ABI from '../../abi/ERC20.json'
 
 export class PairController {
+    private config: OpConfig
+
     private chefGraphClient: ApolloClient<NormalizedCacheObject>
     private exchangeGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
     private pairContract: Contract
     private tokenContract: Contract
 
-    private refreshInterval: number
     private hardRefreshInterval: NodeJS.Timer
 
     constructor(
+        config: OpConfig,
         priceController: PriceController,
-        masterChefGraphUrl: string,
-        exchangeGraphUrl: string,
-        refreshInterval: number
     ) {
+        this.config = config
+        this.priceController = priceController
         this.chefGraphClient = new ApolloClient<NormalizedCacheObject>({
-            uri: masterChefGraphUrl,
+            uri: config.masterChefGraphUrl,
             cache: new InMemoryCache(),
         })
         this.exchangeGraphClient = new ApolloClient<NormalizedCacheObject>({
-            uri: exchangeGraphUrl,
+            uri: config.exchangeGraphUrl,
             cache: new InMemoryCache(),
         })
         this.pairContract = new ethers.Contract(
@@ -55,14 +57,12 @@ export class PairController {
             ERC20ABI,
             getRandomProvider()
         )
-        this.priceController = priceController
-        this.refreshInterval = refreshInterval
         this.hardRefreshInterval = setInterval(() => {})
     }
 
     async init() {
         this.hardRefreshInterval = setInterval(async () => {},
-        this.refreshInterval)
+        this.config.poolRefreshTimeout)
     }
 
     async topPairAddresses() {

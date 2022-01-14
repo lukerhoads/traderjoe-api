@@ -5,6 +5,7 @@ import { Address, BigNumberMantissa } from '../constants'
 import { bnStringToDecimal, formatRes } from '../util'
 
 import JoeContractABI from '../../abi/JoeToken.json'
+import { OpConfig } from '../config'
 
 const JoeContract = new ethers.Contract(
     Address.JOE_ADDRESS,
@@ -17,15 +18,16 @@ const burnFilter = JoeContract.filters.Transfer(null, Address.BURN_ADDRESS)
 // I think there could be a better design for TVL, where we initially get it and then
 // listen for Ethers events
 export class SupplyController {
-    private refreshInterval: number
+    private config: OpConfig
+
     private hardRefreshInterval: NodeJS.Timer
 
     private circulatingSupply: BigNumber
     private maxSupply: BigNumber
     private totalSupply: BigNumber
 
-    constructor(refreshInterval: number) {
-        this.refreshInterval = refreshInterval
+    constructor(config: OpConfig) {
+        this.config = config
         this.hardRefreshInterval = setInterval(() => {})
         this.circulatingSupply = BigNumber.from('0')
         this.maxSupply = BigNumber.from('0')
@@ -43,7 +45,7 @@ export class SupplyController {
 
         this.hardRefreshInterval = setInterval(async () => {
             await this.resetMetrics()
-        }, this.refreshInterval)
+        }, this.config.supplyRefreshTimeout)
     }
 
     async resetMetrics() {

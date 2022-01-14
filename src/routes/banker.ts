@@ -75,6 +75,10 @@ export class BankerController implements Controller {
         this.markets = markets.map((market: string) => market.toLowerCase())
         await this.resetTotals()
         this.hardRefreshInterval = setInterval(async () => {
+            this.cachedMarketSupply = {}
+            this.cachedMarketBorrow = {}
+            this.cachedMarketSupplyApy = {}
+            this.cachedMarketBorrowApy = {}
             await this.resetTotals()
         }, this.config.bankRefreshTimeout)
     }
@@ -162,6 +166,10 @@ export class BankerController implements Controller {
         }
 
         if (this.cachedMarketSupplyApy[marketAddress]) {
+            if (this.cachedMarketSupplyApy[marketAddress].period === period) {
+                return this.cachedMarketSupplyApy[marketAddress].rate
+            }
+
             return convertPeriod(
                 this.cachedMarketSupplyApy[marketAddress],
                 period
@@ -184,6 +192,10 @@ export class BankerController implements Controller {
         }
 
         if (this.cachedMarketSupplyApy[marketAddress]) {
+            if (this.cachedMarketBorrowApy[marketAddress].period === period) {
+                return this.cachedMarketBorrowApy[marketAddress].rate
+            }
+
             return convertPeriod(
                 this.cachedMarketSupplyApy[marketAddress],
                 period
@@ -303,7 +315,7 @@ export class BankerController implements Controller {
                     user
                 )
                 const borrowedAssets = accountSnapshot[2]
-                if (borrowedAssets.toString() != '0') {
+                if (!borrowedAssets.isZero()) {
                     const borrowApy = await this.getBorrowApyByMarket(
                         asset,
                         period
@@ -312,7 +324,7 @@ export class BankerController implements Controller {
                 }
 
                 const suppliedAssets = await customContract.balanceOf(user)
-                if (suppliedAssets.toString() != '0') {
+                if (!suppliedAssets.isZero()) {
                     const supplyApy = await this.getSupplyApyByMarket(
                         asset,
                         period

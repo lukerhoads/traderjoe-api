@@ -16,7 +16,6 @@ import {
     BankerController,
     MetricsController,
 } from './routes'
-import { AdminController } from './routes/admin/config'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -49,14 +48,14 @@ export class Server {
         const versionRouter = express.Router()
 
         const supplyController = new SupplyController(
-            this.config.config.supplyRefreshTimeout
+            this.config.opCfg
         )
         await supplyController.init()
         versionRouter.use('/supply', supplyController.apiRouter)
         this.controllers.push(supplyController)
 
         const priceController = new PriceController(
-            this.config.config.priceRefreshTimeout
+            this.config.opCfg
         )
         await priceController.init()
         versionRouter.use('/price', priceController.apiRouter)
@@ -68,45 +67,36 @@ export class Server {
         this.controllers.push(nftController)
 
         const pairController = new PairController(
+            this.config.opCfg,
             priceController,
-            this.config.config.masterChefGraphUrl,
-            this.config.config.exchangeGraphUrl,
-            this.config.config.poolRefreshTimeout
         )
         await pairController.init()
         versionRouter.use('/pairs', pairController.apiRouter)
         this.controllers.push(pairController)
 
         const poolController = new PoolController(
+            this.config.opCfg,
             priceController,
-            this.config.config.masterChefGraphUrl,
-            this.config.config.poolRefreshTimeout
         )
         await poolController.init()
         versionRouter.use('/pools', poolController.apiRouter)
         this.controllers.push(poolController)
 
         const bankerController = new BankerController(
+            this.config.opCfg,
             priceController,
-            this.config.config.bankRefreshTimeout
         )
         await bankerController.init()
         versionRouter.use('/markets', bankerController.apiRouter)
         this.controllers.push(bankerController)
 
         const metricsController = new MetricsController(
+            this.config.opCfg,
             priceController,
-            this.config.config.exchangeGraphUrl,
-            this.config.config.metricsRefreshTimeout
         )
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
         this.controllers.push(metricsController)
-
-        const adminController = new AdminController()
-        await adminController.init()
-        versionRouter.use('/admin', adminController.apiRouter)
-        this.controllers.push(adminController)
 
         versionRouter.use(
             (err: Error, req: Request, res: Response, next: NextFunction) => {

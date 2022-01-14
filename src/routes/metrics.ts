@@ -5,18 +5,17 @@ import {
     InMemoryCache,
     NormalizedCacheObject,
 } from '@apollo/client/core'
-import { getExchangeTvlQuery } from '../queries'
+import { dayDataQuery, getExchangeTvlQuery, lastDayVolume, lastHourVolumeQuery, volumeOverTimeQuery } from '../queries'
 import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
-import { formatRes } from '../util/format-res'
 import { PriceController } from './price'
 import { parseUnits } from '@ethersproject/units'
-import { getMantissaBigNumber, bnStringToDecimal } from '../util'
+import { getMantissaBigNumber, bnStringToDecimal, formatRes, getBlocks, stringToBn } from '../util'
+import { TimePeriod } from '../types'
+import { OpConfig } from '../config'
 
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
-import { TimePeriod } from '../types'
-import { OpConfig } from '../config'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -34,6 +33,8 @@ export class MetricsController {
 
     private tvl: BigNumber = BigNumber.from('0')
 
+    private cachedVolume: { [key in TimePeriod]?: BigNumber } = {}
+
     constructor(config: OpConfig, priceController: PriceController) {
         this.config = config
         this.exchangeGraphClient = new ApolloClient<NormalizedCacheObject>({
@@ -46,12 +47,17 @@ export class MetricsController {
 
     // Event subscriptions
     async init() {
-        // Setup HARD subscriptions to avoid hard refreshes
         await this.resetMetrics()
 
         this.hardRefreshInterval = setInterval(async () => {
             await this.resetMetrics()
         }, this.config.metricsRefreshTimeout)
+    }
+
+    async resetMetrics() {
+        const [tvl] = await Promise.all([this.getTvl()])
+
+        this.tvl = tvl
     }
 
     get apiRouter() {
@@ -65,17 +71,11 @@ export class MetricsController {
         // TODO
         router.get('/volume', async (req, res, next) => {
             const period = req.query.period as TimePeriod
-            const volume = this.getVolume(period)
+            const volume = await this.getVolume(period)
             res.send(formatRes(bnStringToDecimal(volume.toString(), 18)))
         })
 
         return router
-    }
-
-    async resetMetrics() {
-        const [tvl] = await Promise.all([this.getTvl()])
-
-        this.tvl = tvl
     }
 
     // Adds exchange and bank TVL
@@ -129,8 +129,50 @@ export class MetricsController {
         return exchangeTvl.add(marketTvl)
     }
 
-    async getVolume(period: TimePeriod) {
-        return BigNumber.from('0')
+    async getVolume(period: TimePeriod = "1d") {
+        if (this.cachedVolume[period]) {
+            return this.cachedVolume[period]!
+        }
+
+        if (period === "1d") {
+            const { data: { dayDatas } } = await this.exchangeGraphClient.query({
+                query: lastDayVolume,
+            }) 
+
+            return stringToBn(dayDatas[0].volumeUSD, 18)
+        }
+
+        let dayMultiplier = 1
+        switch (period) {
+            case "1s":
+                throw new Error("Unable to get one second data")
+            case "1m":
+                throw new Error("Unable to get one minute data")
+            case "1h":
+                // This hourdata entity query isn't working
+                // const { data: { hourDatas } } = await this.exchangeGraphClient.query({
+                //     query: lastHourVolumeQuery,
+                // })
+
+                // return stringToBn(hourDatas[0].volumeUSD, 18)
+                throw new Error("Unable to get hour data")
+            case "1mo":
+                dayMultiplier = 30
+            case "1y":
+                dayMultiplier = 365
+        }
+
+        const { data: { dayDatas } } = await this.exchangeGraphClient.query({
+            query: volumeOverTimeQuery,
+            variables: { days: dayMultiplier } 
+        })
+
+        let volumeSum = BigNumber.from("0")
+        for (let dayData of dayDatas) {
+            volumeSum = volumeSum.add(stringToBn(dayData.volumeUSD, 18))
+        }
+
+        return volumeSum
     }
 
     async close() {

@@ -52,6 +52,10 @@ class Config {
         dotenv.config({ path: path.join(__dirname, '/.env') })
     }
 
+    get opCfg(): OpConfig {
+        return this.opConfig
+    }
+
     get config(): AppConfig {
         return {
             ...this.opConfig,
