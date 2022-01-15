@@ -19,7 +19,9 @@ import {
 } from './routes'
 import { Logger } from './logger'
 import { RateLimiter } from './rate-limiter'
-import { createClient } from 'redis'
+import client from 'prom-client'
+import { customMetrics, httpRequestTimer } from './metrics'
+import responseTime from 'response-time'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -27,6 +29,7 @@ export class Server {
     protected config: Config
     protected app: express.Application
     protected httpServer?: http.Server
+    protected promRegister: client.Registry
     // protected redisClient: ReturnType<typeof createClient>
 
     protected controllers: Controller[]
@@ -35,18 +38,19 @@ export class Server {
         this.config = new Config()
         this.app = express()
         this.controllers = []
-        // this.redisClient = createClient({
-        //     url: `redis://${config.redisHost}:${config.redisPort}`,
-        // })
-        // if (!this.redisClient) {
-        //     throw new Error(`Redis could not connect to ${config.redisHost}:${config.redisPort}`)
-        // }
+        this.promRegister = new client.Registry()
+        client.AggregatorRegistry.setRegistries(this.promRegister)
+        client.collectDefaultMetrics({
+            prefix: 'node_',
+            gcDurationBuckets: [0.001, 0.01, 0.1, 1, 2, 5],
+            register: this.promRegister,
+        })
+        for (let metric of customMetrics) {
+            this.promRegister.registerMetric(metric)
+        }
     }
 
-    // Registers all middleware and routers the app uses
     public async init() {
-        // await this.redisClient.connect()
-
         this.setupDocs()
         this.app.set('trust proxy', true)
         this.app.use(bodyParser.json())
@@ -59,6 +63,11 @@ export class Server {
                 res.send('Pong')
             }
         )
+
+        this.app.get('/metrics', async (req: Request, res: Response, next: NextFunction) => {
+            res.setHeader('Content-Type', this.promRegister.contentType)
+            res.send(await this.promRegister.metrics())
+        })
 
         const versionRouter = express.Router()
         const rateLimiter = new RateLimiter({
@@ -140,13 +149,9 @@ export class Server {
             }
         )
 
-        versionRouter.get(
-            '/ping',
-            (req: Request, res: Response, next: NextFunction) => {
-                res.send('Pong')
-            }
-        )
-
+        this.app.use(responseTime((req, res, time) => {
+            httpRequestTimer.observe(time)
+        }))
         this.app.use(this.config.config.version, versionRouter)
     }
 

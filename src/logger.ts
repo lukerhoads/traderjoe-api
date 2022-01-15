@@ -1,8 +1,16 @@
 import pino from 'pino'
 import logger from 'pino-http'
+import pretty from 'pino-pretty'
+import { isProd } from './config'
 
-export const Logger = logger({
-    logger: pino(),
+const prettyOpts = pretty({
+    colorize: true
+})
+
+export const appLogger = isProd ? pino() : pino(prettyOpts)
+
+export const loggerMiddleware = logger({
+    logger: appLogger,
     customLogLevel: (res, err) => {
         if (res.statusCode >= 400 && res.statusCode < 500) {
             return 'warn'

@@ -1,8 +1,6 @@
 # TODO
 
 -   Add prometheus metrics with Grafana (https://codersociety.com/blog/articles/nodejs-application-monitoring-with-prometheus-and-grafana)
--   Add detailed logging
--   Add rate limiting
 -   Add example responses for extremely easy documentation
 -   See (https://discord.com/channels/830990443457806347/918878314804957296/921776420542365706)
 -   Add single redis/multiple images that fetch from the same redis image and have a TTL
