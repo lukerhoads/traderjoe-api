@@ -8,7 +8,6 @@ import {
 import {
     getExchangeTvlQuery,
     lastDayVolume,
-    lastHourVolumeQuery,
     volumeOverTimeQuery,
 } from '../queries'
 import { Address } from '../constants'

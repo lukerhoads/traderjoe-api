@@ -17,7 +17,7 @@ import {
     MetricsController,
     StakeController,
 } from './routes'
-import { Logger } from './logger'
+import { loggerMiddleware } from './logger'
 import { RateLimiter } from './rate-limiter'
 import client from 'prom-client'
 import { customMetrics, httpRequestTimer } from './metrics'
@@ -55,7 +55,7 @@ export class Server {
         this.app.set('trust proxy', true)
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
-        this.app.use(Logger)
+        this.app.use(loggerMiddleware)
 
         this.app.get(
             '/ping',

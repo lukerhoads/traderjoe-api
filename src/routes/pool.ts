@@ -42,7 +42,6 @@ const JoeFactoryContract = new ethers.Contract(
 export class PoolController {
     private config: OpConfig
 
-    // This masterchef stuff is still abstract to get from contracts
     private masterChefGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
     private pairContract: Contract
