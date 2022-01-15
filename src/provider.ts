@@ -30,7 +30,9 @@ for (let provider of TESTNET_PROVIDERS) {
 }
 
 // Remove when env is added
-mainnetProviderPool.providers.push(new providers.JsonRpcProvider(DEFAULT_PROVIDER_URL))
+mainnetProviderPool.providers.push(
+    new providers.JsonRpcProvider(DEFAULT_PROVIDER_URL)
+)
 testnetProviderPool.providers.push(
     new providers.JsonRpcProvider(DEFAULT_TESTNET_PROVIDER_URL)
 )

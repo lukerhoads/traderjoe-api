@@ -1,13 +1,13 @@
 import express from 'express'
 import { getRandomProvider } from '../provider'
-import { Address, BigNumberMantissa, getAddress } from '../constants'
+import { Address, BigNumberMantissa } from '../constants'
 import { BigNumber, Contract, ethers } from 'ethers'
+import { bnStringToDecimal, formatRes } from '../util'
+import { OpConfig } from '../config'
 
 import JoeBarContractABI from '../../abi/JoeBar.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
 import ERC20 from '../../abi/ERC20.json'
-import { bnStringToDecimal, formatRes } from '../util'
-import { OpConfig } from '../config'
 
 const JoeFactoryContract = new ethers.Contract(
     Address.JOE_FACTORY_ADDRESS,

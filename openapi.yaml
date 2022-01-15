@@ -422,7 +422,7 @@ paths:
                                         example: '30009819328012'
                                     status:
                                         $ref: '#/components/schemas/status'
-     /{poolId}/apr:
+    /{poolId}/apr:
         get:
             summary: APR of TraderJoe farm pool
             tags:
@@ -455,7 +455,7 @@ paths:
                                         example: '30009819328012'
                                     status:
                                         $ref: '#/components/schemas/status'
-     /{poolId}/apr/bonus:
+    /{poolId}/apr/bonus:
         get:
             summary: Bonus APR of TraderJoe farm pool
             tags:

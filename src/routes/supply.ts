@@ -1,7 +1,7 @@
 import { BigNumber, ethers } from 'ethers'
 import express from 'express'
 import { getRandomProvider } from '../provider'
-import { Address, BigNumberMantissa } from '../constants'
+import { Address } from '../constants'
 import { bnStringToDecimal, formatRes } from '../util'
 
 import JoeContractABI from '../../abi/JoeToken.json'

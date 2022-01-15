@@ -1,6 +1,5 @@
 import { BigNumber } from 'ethers'
-import { PeriodRate } from '../routes'
-import { TimePeriod } from '../types'
+import { TimePeriod, PeriodRate } from '../types'
 
 export const secondsToPeriod = (roiPerSec: BigNumber, period: TimePeriod) => {
     switch (period) {

@@ -1,6 +1,7 @@
 import 'dotenv/config'
 import * as dotenv from 'dotenv'
 import * as path from 'path'
+import { RateLimitFilter } from './rate-limiter'
 
 export const isProd = process.env.NODE_ENV === 'production'
 
@@ -18,6 +19,10 @@ export interface OpConfig {
     stakeRefreshTimeout: number
 
     temporalRefreshTimeout: number
+
+    rateLimitBy: RateLimitFilter[]
+    rateLimit: number
+    rateLimitExpire: number
 }
 
 const opConfig: OpConfig = {
@@ -37,11 +42,17 @@ const opConfig: OpConfig = {
     stakeRefreshTimeout: 60000,
 
     temporalRefreshTimeout: 9e4, // About a day
+
+    rateLimitBy: ['ip'],
+    rateLimit: 5,
+    rateLimitExpire: 3600, // one hour in seconds
 }
 
 export type AppConfig = OpConfig & {
     host: string
     port: number
+    redisHost: string
+    redisPort: number
 }
 
 class Config {
@@ -63,6 +74,8 @@ class Config {
             ...this.opConfig,
             host: process.env.HOST || 'localhost',
             port: parseInt(process.env.PORT || '') || 3000,
+            redisHost: process.env.REDIS_HOST || 'localhost',
+            redisPort: parseInt(process.env.REDIS_PORT || '') || 6379,
         }
     }
 }

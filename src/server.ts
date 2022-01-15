@@ -17,8 +17,9 @@ import {
     MetricsController,
     StakeController,
 } from './routes'
-import pino from 'pino-http'
 import { Logger } from './logger'
+import { RateLimiter } from './rate-limiter'
+import { createClient } from 'redis'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -26,6 +27,7 @@ export class Server {
     protected config: Config
     protected app: express.Application
     protected httpServer?: http.Server
+    // protected redisClient: ReturnType<typeof createClient>
 
     protected controllers: Controller[]
 
@@ -33,11 +35,20 @@ export class Server {
         this.config = new Config()
         this.app = express()
         this.controllers = []
+        // this.redisClient = createClient({
+        //     url: `redis://${config.redisHost}:${config.redisPort}`,
+        // })
+        // if (!this.redisClient) {
+        //     throw new Error(`Redis could not connect to ${config.redisHost}:${config.redisPort}`)
+        // }
     }
 
     // Registers all middleware and routers the app uses
     public async init() {
+        // await this.redisClient.connect()
+
         this.setupDocs()
+        this.app.set('trust proxy', true)
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
         this.app.use(Logger)
@@ -50,17 +61,23 @@ export class Server {
         )
 
         const versionRouter = express.Router()
+        const rateLimiter = new RateLimiter({
+            redisHost: this.config.config.redisHost,
+            redisPort: this.config.config.redisPort,
+            per: this.config.opCfg.rateLimitBy,
+            limit: this.config.opCfg.rateLimit,
+            expire: this.config.opCfg.rateLimitExpire,
+        })
 
-        const supplyController = new SupplyController(
-            this.config.opCfg
-        )
+        await rateLimiter.init()
+        versionRouter.use(rateLimiter.getMiddleware()(this.config.opCfg.rateLimit, this.config.opCfg.rateLimitExpire))
+
+        const supplyController = new SupplyController(this.config.opCfg)
         await supplyController.init()
         versionRouter.use('/supply', supplyController.apiRouter)
         this.controllers.push(supplyController)
 
-        const priceController = new PriceController(
-            this.config.opCfg
-        )
+        const priceController = new PriceController(this.config.opCfg)
         await priceController.init()
         versionRouter.use('/price', priceController.apiRouter)
         this.controllers.push(priceController)
@@ -72,7 +89,7 @@ export class Server {
 
         const pairController = new PairController(
             this.config.opCfg,
-            priceController,
+            priceController
         )
         await pairController.init()
         versionRouter.use('/pairs', pairController.apiRouter)
@@ -80,7 +97,7 @@ export class Server {
 
         const poolController = new PoolController(
             this.config.opCfg,
-            priceController,
+            priceController
         )
         await poolController.init()
         versionRouter.use('/pools', poolController.apiRouter)
@@ -88,7 +105,7 @@ export class Server {
 
         const bankerController = new BankerController(
             this.config.opCfg,
-            priceController,
+            priceController
         )
         await bankerController.init()
         versionRouter.use('/markets', bankerController.apiRouter)
@@ -96,7 +113,7 @@ export class Server {
 
         const metricsController = new MetricsController(
             this.config.opCfg,
-            priceController,
+            priceController
         )
         await metricsController.init()
         versionRouter.use('/metrics', metricsController.apiRouter)
@@ -105,7 +122,7 @@ export class Server {
         const stakeController = new StakeController(
             this.config.opCfg,
             metricsController,
-            priceController,
+            priceController
         )
         await stakeController.init()
         versionRouter.use('/staking', stakeController.apiRouter)
@@ -120,6 +137,13 @@ export class Server {
                         errorTrace: err.stack,
                     })
                 )
+            }
+        )
+
+        versionRouter.get(
+            '/ping',
+            (req: Request, res: Response, next: NextFunction) => {
+                res.send('Pong')
             }
         )
 

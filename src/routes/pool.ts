@@ -6,7 +6,7 @@ import {
 } from '@apollo/client/core'
 import { BigNumber, Contract, ethers } from 'ethers'
 
-import { Address, getAddress } from '../constants'
+import { Address } from '../constants'
 import { getRandomProvider } from '../provider'
 import { poolById, poolByPair } from '../queries'
 import { PriceController } from './price'
@@ -17,8 +17,8 @@ import {
     convertPeriod,
     secondsToPeriod,
 } from '../util'
-import { TimePeriod } from '../types'
-import { PeriodRate } from './banker'
+import { TimePeriod, PeriodRate } from '../types'
+import { OpConfig } from '../config'
 
 import MasterChefABI from '../../abi/MasterChef.json'
 import JoePairABI from '../../abi/JoePair.json'
@@ -26,7 +26,6 @@ import ERC20ABI from '../../abi/ERC20.json'
 import RewarderABI from '../../abi/SimpleRewarder.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
 import JoeLPTokenABI from '../../abi/JoeLPToken.json'
-import { OpConfig } from '../config'
 
 const MasterChefContract = new ethers.Contract(
     Address.JOE_MASTER_CHEF_ADDRESS,
@@ -209,7 +208,7 @@ export class PoolController {
         const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD)
 
         const rate = secondsToPeriod(roiPerSec, samplePeriod)
-        this.cachedPoolApr[poolId] = { samplePeriod, rate }
+        this.cachedPoolApr[poolId] = { period: samplePeriod, rate: rate }
         return rate
     }
 
@@ -277,7 +276,7 @@ export class PoolController {
         const roiPerSec = tokenPerSec.mul(rewardTokenPrice).div(balanceUSD)
 
         let rate = secondsToPeriod(roiPerSec, samplePeriod)
-        this.cachedPoolBonusApr[poolId] = { samplePeriod, rate }
+        this.cachedPoolBonusApr[poolId] = { period: samplePeriod, rate: rate }
         return rate
     }
 

@@ -66,7 +66,7 @@ export class StakeController {
         const cachedStakeRewards =
             this.stakingRewardsIncludesPeriod(samplePeriod)
         if (cachedStakeRewards) {
-            return rateToYear(cachedStakeRewards.rate)
+            return rateToYear(cachedStakeRewards)
         }
 
         const periodVolume = await this.metricsController.getVolume(

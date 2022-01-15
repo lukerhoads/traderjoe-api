@@ -3,7 +3,6 @@ import logger from 'pino-http'
 
 export const Logger = logger({
     logger: pino(),
-    useLevel: 'info',
     customLogLevel: (res, err) => {
         if (res.statusCode >= 400 && res.statusCode < 500) {
             return 'warn'
@@ -13,5 +12,5 @@ export const Logger = logger({
             return 'silent'
         }
         return 'info'
-    }
+    },
 })

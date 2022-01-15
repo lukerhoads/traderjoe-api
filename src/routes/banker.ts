@@ -1,6 +1,5 @@
 import { BigNumber, Contract, ethers } from 'ethers'
 import express from 'express'
-import { PeriodRate, TimePeriod } from '../types'
 import { Address, BigNumberMantissa, BigNumberZero } from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
@@ -8,8 +7,6 @@ import {
     getMantissaBigNumber,
     bnStringToDecimal,
     formatRes,
-    convertPeriod,
-    secondsToPeriod,
     rateToYear,
 } from '../util'
 import { OpConfig } from '../config'
@@ -45,8 +42,8 @@ export class BankerController implements Controller {
     private cachedUserSupply: { [address: string]: BigNumber } = {}
     private cachedUserBorrow: { [address: string]: BigNumber } = {}
 
-    private cachedMarketSupplyApy: { [address: string]: PeriodRate } = {}
-    private cachedMarketBorrowApy: { [address: string]: PeriodRate } = {}
+    private cachedMarketSupplyApy: { [address: string]: BigNumber } = {}
+    private cachedMarketBorrowApy: { [address: string]: BigNumber } = {}
 
     private cachedUserNetApy: { [address: string]: BigNumber } = {}
 
@@ -286,7 +283,7 @@ export class BankerController implements Controller {
         return userBorrow
     }
 
-    protected async getUserNetApy(user: string, period: TimePeriod = '1y') {
+    protected async getUserNetApy(user: string) {
         if (this.cachedUserNetApy[user]) {
             return this.cachedUserNetApy[user]
         }
@@ -298,29 +295,24 @@ export class BankerController implements Controller {
 
         const allApys = await Promise.all(
             assetsIn.map(async (asset: string) => {
+                let assetNetApy = BigNumber.from('0')
                 const customContract = this.jTokenContract.attach(asset)
                 const accountSnapshot = await customContract.getAccountSnapshot(
                     user
                 )
                 const borrowedAssets = accountSnapshot[2]
                 if (!borrowedAssets.isZero()) {
-                    const borrowApy = await this.getBorrowApyByMarket(
-                        asset,
-                        period
-                    )
-                    netApy = netApy.sub(borrowApy)
+                    const borrowApy = await this.getBorrowApyByMarket(asset)
+                    assetNetApy = assetNetApy.sub(borrowApy)
                 }
 
                 const suppliedAssets = await customContract.balanceOf(user)
                 if (!suppliedAssets.isZero()) {
-                    const supplyApy = await this.getSupplyApyByMarket(
-                        asset,
-                        period
-                    )
-                    netApy = netApy.add(supplyApy)
+                    const supplyApy = await this.getSupplyApyByMarket(asset)
+                    assetNetApy = assetNetApy.add(supplyApy)
                 }
 
-                return netApy
+                return assetNetApy
             })
         )
 
@@ -374,13 +366,8 @@ export class BankerController implements Controller {
 
         router.get('/supply/:marketAddress/apy', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
-            const period = req.query.period as TimePeriod
-
             try {
-                const supplyApy = await this.getSupplyApyByMarket(
-                    marketAddress,
-                    period
-                )
+                const supplyApy = await this.getSupplyApyByMarket(marketAddress)
                 const supplyApyString = supplyApy.toString()
                 res.send(formatRes(bnStringToDecimal(supplyApyString, 18)))
             } catch (err) {
@@ -391,13 +378,8 @@ export class BankerController implements Controller {
         // Supply and borrow APY for a single market
         router.get('/borrow/:marketAddress/apy', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
-            const period = req.query.period as TimePeriod
-
             try {
-                const borrowApy = await this.getBorrowApyByMarket(
-                    marketAddress,
-                    period
-                )
+                const borrowApy = await this.getBorrowApyByMarket(marketAddress)
                 const borrowApyString = borrowApy.toString()
                 res.send(formatRes(bnStringToDecimal(borrowApyString, 18)))
             } catch (err) {
@@ -430,10 +412,9 @@ export class BankerController implements Controller {
 
         router.get('/:userAddress/net/apy', async (req, res, next) => {
             const userAddress = req.params.userAddress.toLowerCase()
-            const period = req.query.period as TimePeriod
 
             try {
-                const netApy = await this.getUserNetApy(userAddress, period)
+                const netApy = await this.getUserNetApy(userAddress)
                 const netApyString = netApy.toString()
                 res.send(formatRes(bnStringToDecimal(netApyString, 18)))
             } catch (err) {
