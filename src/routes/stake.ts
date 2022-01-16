@@ -7,6 +7,7 @@ import { formatRes, bnStringToDecimal, rateToYear } from '../util'
 import { BigNumberMantissa, STAKING_FEE_RATE } from '../constants'
 import { getRandomProvider } from '../provider'
 import { Address } from '../constants'
+import { Cache } from '../cache'
 
 import ERC20ABI from '../../abi/ERC20.json'
 
@@ -17,6 +18,7 @@ export class StakeController {
     private hardRefreshInterval: NodeJS.Timer
     private joeContract: Contract
 
+    private cache: Cache
     // Sample periods all kept seperately
     private cachedStakingRewards: {
         period: TimePeriod
@@ -25,10 +27,12 @@ export class StakeController {
 
     constructor(
         config: OpConfig,
+        cache: Cache,
         metricsController: MetricsController,
         priceController: PriceController
     ) {
         this.config = config
+        this.cache = cache
         this.metricsController = metricsController
         this.priceController = priceController
         this.joeContract = new ethers.Contract(

@@ -6,7 +6,7 @@ import {
 } from '@apollo/client/core'
 import { pairByAddress, pairTimeTravelQuery, poolsQuery } from '../queries'
 import { PriceController } from './price'
-import { Address, BigNumberMantissa, FEE_RATE } from '../constants'
+import { Address, BigNumberMantissa, CachePrefix, FEE_RATE } from '../constants'
 import { TimePeriod } from '../types'
 import { Contract, ethers } from 'ethers'
 import { getRandomProvider } from '../provider'
@@ -14,10 +14,12 @@ import {
     bnStringToDecimal,
     formatRes,
     getBlocks,
+    getCacheKey,
     getMantissaBigNumber,
     stringToBn,
 } from '../util'
 import { OpConfig } from '../config'
+import { Cache } from '../cache'
 
 import JoePairABI from '../../abi/JoePair.json'
 import ERC20ABI from '../../abi/ERC20.json'
@@ -25,6 +27,7 @@ import ERC20ABI from '../../abi/ERC20.json'
 export class PairController {
     private config: OpConfig
 
+    private cache: Cache
     private chefGraphClient: ApolloClient<NormalizedCacheObject>
     private exchangeGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
@@ -33,8 +36,13 @@ export class PairController {
 
     private hardRefreshInterval: NodeJS.Timer
 
-    constructor(config: OpConfig, priceController: PriceController) {
+    constructor(
+        config: OpConfig,
+        cache: Cache,
+        priceController: PriceController
+    ) {
         this.config = config
+        this.cache = cache
         this.priceController = priceController
         this.chefGraphClient = new ApolloClient<NormalizedCacheObject>({
             uri: config.masterChefGraphUrl,
@@ -73,6 +81,11 @@ export class PairController {
     }
 
     protected async getPairLiquidity(pairAddress: string) {
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.pair, pairAddress, 'liquidity')
+        )
+        if (cachedValue) return cachedValue
+
         // Somehow validate that pairAddress is a valid pair
         const customContract = this.pairContract.attach(pairAddress)
         const reserves = await customContract.getReserves()
@@ -96,7 +109,13 @@ export class PairController {
             .mul(token1Price)
             .div(getMantissaBigNumber(token1Decimals))
 
-        return token0Tvl.add(token1Tvl)
+        const liquidity = token0Tvl.add(token1Tvl)
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.pair, pairAddress, 'liquidity'),
+            liquidity,
+            this.config.pairRefreshTimeout
+        )
+        return liquidity
     }
 
     // Need to make this contract stuff
@@ -104,6 +123,11 @@ export class PairController {
         pairAddress: string,
         period: TimePeriod = '1d'
     ) {
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.pair, pairAddress, 'volume')
+        )
+        if (cachedValue) return cachedValue
+
         const { data: pairData } = await this.exchangeGraphClient.query({
             query: pairByAddress,
             variables: {
@@ -140,8 +164,13 @@ export class PairController {
 
         const volumeUSDBn = stringToBn(volumeUSD, 18)
         const periodVolumeUSDBn = stringToBn(periodVolumeUSD, 18)
-
-        return volumeUSDBn.sub(periodVolumeUSDBn)
+        const volume = volumeUSDBn.sub(periodVolumeUSDBn)
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.pair, pairAddress, 'volume'),
+            volume,
+            this.config.pairRefreshTimeout
+        )
+        return volume
     }
 
     protected async getPairFees(

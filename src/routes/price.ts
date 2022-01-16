@@ -1,9 +1,10 @@
 import express from 'express'
 import { getRandomProvider } from '../provider'
-import { Address, BigNumberMantissa } from '../constants'
+import { Address, BigNumberMantissa, CachePrefix } from '../constants'
 import { BigNumber, Contract, ethers } from 'ethers'
-import { bnStringToDecimal, formatRes } from '../util'
+import { bnStringToDecimal, formatRes, getCacheKey } from '../util'
 import { OpConfig } from '../config'
+import { Cache } from '../cache'
 
 import JoeBarContractABI from '../../abi/JoeBar.json'
 import JoeFactoryABI from '../../abi/JoeFactory.json'
@@ -30,28 +31,27 @@ const JoeContract = new ethers.Contract(
 export class PriceController {
     private config: OpConfig
 
+    private cache: Cache
     private hardRefreshInterval: NodeJS.Timer
 
+    // Not worth stuffing in redis
     private pairs: { [address: string]: string }
     private decimals: { [address: string]: number }
     private contracts: { [address: string]: Contract }
-    private cachedPrices: { [address: string]: BigNumber }
 
-    constructor(config: OpConfig) {
+    constructor(config: OpConfig, cache: Cache) {
         this.config = config
+        this.cache = cache
         this.hardRefreshInterval = setInterval(() => {})
         this.pairs = {}
         this.decimals = {}
         this.contracts = {}
-        this.cachedPrices = {}
     }
 
     async init() {
         await this.getAvaxPrice()
 
         this.hardRefreshInterval = setInterval(async () => {
-            // Set this to empty because these change often
-            this.cachedPrices = {}
             await this.getAvaxPrice()
         }, this.config.priceRefreshTimeout)
     }
@@ -130,8 +130,11 @@ export class PriceController {
     }
 
     public async getAvaxPrice() {
-        if (this.cachedPrices[Address.WAVAX_ADDRESS]) {
-            return this.cachedPrices[Address.WAVAX_ADDRESS]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.price, Address.WAVAX_ADDRESS, 'price')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const reserves = await Promise.all([
@@ -155,13 +158,20 @@ export class PriceController {
             .div(reserves[1][0])
 
         const avaxPrice = usdcPrice.add(usdtPrice).div(BigNumber.from('2'))
-        this.cachedPrices[Address.WAVAX_ADDRESS] = avaxPrice
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.price, Address.WAVAX_ADDRESS, 'price'),
+            avaxPrice,
+            this.config.priceRefreshTimeout
+        )
         return avaxPrice
     }
 
     public async getXJoePrice(derived: boolean) {
-        if (this.cachedPrices[Address.XJOE_ADDRESS]) {
-            return this.cachedPrices[Address.XJOE_ADDRESS]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.price, Address.XJOE_ADDRESS, 'price')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const joeBalance = await JoeContract.balanceOf(Address.XJOE_ADDRESS)
@@ -169,7 +179,11 @@ export class PriceController {
         const ratio = totalSupply.mul(BigNumberMantissa).div(joeBalance)
         const joePrice = await this.getPrice(Address.JOE_ADDRESS, derived)
         const xJoePrice = joePrice.mul(ratio).div(BigNumberMantissa)
-        this.cachedPrices[Address.XJOE_ADDRESS] = xJoePrice
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.price, Address.XJOE_ADDRESS, 'price'),
+            xJoePrice,
+            this.config.priceRefreshTimeout
+        )
         return xJoePrice
     }
 
@@ -186,15 +200,14 @@ export class PriceController {
             return this.getXJoePrice(derived)
         }
 
-        if (this.cachedPrices[tokenAddress]) {
-            if (derived) {
-                return this.cachedPrices[tokenAddress]
-            }
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.price, tokenAddress, 'price')
+        )
+        if (cachedValue) {
+            if (derived) return cachedValue
 
             const avaxPrice = await this.getAvaxPrice()
-            return this.cachedPrices[tokenAddress]
-                .mul(avaxPrice)
-                .div(BigNumberMantissa)
+            return cachedValue.mul(avaxPrice).div(BigNumberMantissa)
         }
 
         const pairAddress = await this.getAvaxPair(tokenAddress)
@@ -213,7 +226,11 @@ export class PriceController {
 
         // Gets JOE price in AVAX
         const derivedPrice = reserve[0].mul(BigNumberMantissa).div(reserve[1])
-        this.cachedPrices[tokenAddress] = derivedPrice
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.price, tokenAddress, 'price'),
+            derivedPrice,
+            this.config.priceRefreshTimeout
+        )
         if (derived) return derivedPrice
         const avaxPrice = await this.getAvaxPrice()
         // DerivedPrice is relative to AVAX, avaxPrice is amount of dollars in an avax

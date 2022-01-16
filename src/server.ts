@@ -22,6 +22,7 @@ import { RateLimiter } from './rate-limiter'
 import client from 'prom-client'
 import { customMetrics, httpRequestTimer } from './metrics'
 import responseTime from 'response-time'
+import { Cache } from './cache'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -30,7 +31,7 @@ export class Server {
     protected app: express.Application
     protected httpServer?: http.Server
     protected promRegister: client.Registry
-    // protected redisClient: ReturnType<typeof createClient>
+    protected cache: Cache
 
     protected controllers: Controller[]
 
@@ -38,6 +39,11 @@ export class Server {
         this.config = new Config()
         this.app = express()
         this.controllers = []
+        this.cache = new Cache({
+            host: this.config.config.redisHost,
+            port: this.config.config.redisPort,
+            defaultExpiry: 60,
+        })
         this.promRegister = new client.Registry()
         client.AggregatorRegistry.setRegistries(this.promRegister)
         client.collectDefaultMetrics({
@@ -64,10 +70,13 @@ export class Server {
             }
         )
 
-        this.app.get('/metrics', async (req: Request, res: Response, next: NextFunction) => {
-            res.setHeader('Content-Type', this.promRegister.contentType)
-            res.send(await this.promRegister.metrics())
-        })
+        this.app.get(
+            '/metrics',
+            async (req: Request, res: Response, next: NextFunction) => {
+                res.setHeader('Content-Type', this.promRegister.contentType)
+                res.send(await this.promRegister.metrics())
+            }
+        )
 
         const versionRouter = express.Router()
         const rateLimiter = new RateLimiter({
@@ -79,14 +88,22 @@ export class Server {
         })
 
         await rateLimiter.init()
-        versionRouter.use(rateLimiter.getMiddleware()(this.config.opCfg.rateLimit, this.config.opCfg.rateLimitExpire))
+        versionRouter.use(
+            rateLimiter.getMiddleware()(
+                this.config.opCfg.rateLimit,
+                this.config.opCfg.rateLimitExpire
+            )
+        )
 
         const supplyController = new SupplyController(this.config.opCfg)
         await supplyController.init()
         versionRouter.use('/supply', supplyController.apiRouter)
         this.controllers.push(supplyController)
 
-        const priceController = new PriceController(this.config.opCfg)
+        const priceController = new PriceController(
+            this.config.opCfg,
+            this.cache
+        )
         await priceController.init()
         versionRouter.use('/price', priceController.apiRouter)
         this.controllers.push(priceController)
@@ -98,6 +115,7 @@ export class Server {
 
         const pairController = new PairController(
             this.config.opCfg,
+            this.cache,
             priceController
         )
         await pairController.init()
@@ -106,6 +124,7 @@ export class Server {
 
         const poolController = new PoolController(
             this.config.opCfg,
+            this.cache,
             priceController
         )
         await poolController.init()
@@ -114,6 +133,7 @@ export class Server {
 
         const bankerController = new BankerController(
             this.config.opCfg,
+            this.cache,
             priceController
         )
         await bankerController.init()
@@ -122,6 +142,7 @@ export class Server {
 
         const metricsController = new MetricsController(
             this.config.opCfg,
+            this.cache,
             priceController
         )
         await metricsController.init()
@@ -130,6 +151,7 @@ export class Server {
 
         const stakeController = new StakeController(
             this.config.opCfg,
+            this.cache,
             metricsController,
             priceController
         )
@@ -149,9 +171,11 @@ export class Server {
             }
         )
 
-        this.app.use(responseTime((req, res, time) => {
-            httpRequestTimer.observe(time)
-        }))
+        this.app.use(
+            responseTime((req, res, time) => {
+                httpRequestTimer.observe(time)
+            })
+        )
         this.app.use(this.config.config.version, versionRouter)
     }
 

@@ -79,3 +79,13 @@ export const TestnetAddress = {
 }
 
 export const Address = MainnetAddress
+
+export const CachePrefix = {
+    banker: 'banker_',
+    metrics: 'metrics_',
+    pair: 'pair_',
+    pool: 'pool_',
+    price: 'price_',
+    stake: 'stake_',
+    supply: 'supply_',
+}

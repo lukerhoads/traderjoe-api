@@ -232,7 +232,7 @@ paths:
                   required: true
                   description: Address of market
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -257,7 +257,7 @@ paths:
                   required: true
                   description: Address of market
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -282,7 +282,7 @@ paths:
                   required: true
                   description: Address of market
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -307,7 +307,7 @@ paths:
                   required: true
                   description: Address of market
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -332,7 +332,7 @@ paths:
                   required: true
                   description: Address of user
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -357,7 +357,7 @@ paths:
                   required: true
                   description: Address of user
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -382,7 +382,7 @@ paths:
                   required: true
                   description: Address of user
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -408,7 +408,7 @@ paths:
                   description: ID of pool
                   example: '3'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -434,14 +434,14 @@ paths:
                   description: ID of pool
                   example: '3'
                   schema:
-                    type: string
+                      type: string
                 - name: period
                   description: Sample period to get APR
-                  in: query 
+                  in: query
                   required: false
                   example: '1mo'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -467,14 +467,14 @@ paths:
                   description: ID of pool
                   example: '3'
                   schema:
-                    type: string
+                      type: string
                 - name: period
                   description: Sample period to get APR
-                  in: query 
+                  in: query
                   required: false
                   example: '1mo'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -500,7 +500,7 @@ paths:
                   description: Address of pair
                   example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -526,13 +526,13 @@ paths:
                   description: Address of pair
                   example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
                   schema:
-                    type: string
+                      type: string
                 - name: period
-                  in: query 
+                  in: query
                   required: false
                   example: '1mo'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -558,13 +558,13 @@ paths:
                   description: Address of pair
                   example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
                   schema:
-                    type: string
+                      type: string
                 - name: period
-                  in: query 
+                  in: query
                   required: false
                   example: '1mo'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -590,14 +590,14 @@ paths:
                   description: Address of pair
                   example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
                   schema:
-                    type: string
+                      type: string
                 - name: period
                   description: Sample period to get APR
-                  in: query 
+                  in: query
                   required: false
                   example: '1mo'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -636,11 +636,11 @@ paths:
                 - metrics
             parameters:
                 - name: period
-                  in: query 
+                  in: query
                   required: false
                   example: '1mo'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -666,7 +666,7 @@ paths:
                   description: Address of token
                   example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -692,7 +692,7 @@ paths:
                   description: Address of token
                   example: '0x113f413371fc4cc4c9d6416cf1de9dfd7bf747df'
                   schema:
-                    type: string
+                      type: string
             responses:
                 '200':
                     description: OK
@@ -706,9 +706,6 @@ paths:
                                         example: '30009819328012'
                                     status:
                                         $ref: '#/components/schemas/status'
-    
-
-
 
 components:
     schemas:

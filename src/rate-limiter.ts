@@ -23,7 +23,9 @@ export class RateLimiter {
         })
 
         if (!this.redisClient) {
-            throw new Error(`Redis could not connect to ${config.redisHost}:${config.redisPort}`)
+            throw new Error(
+                `Redis could not connect to ${config.redisHost}:${config.redisPort}`
+            )
         }
     }
 
@@ -33,27 +35,68 @@ export class RateLimiter {
 
     public getMiddleware() {
         if (this.config.per.length === 2) {
-            return (limit: number, expire: number) => async (req: Request, res: Response, next: NextFunction) => {
-                const ip = req.ip
-                const path = req.path
-                const key = `ratelimit:${ip}:${path}`
-                try {
-                    const cacheRes = await this.redisClient.incr(key)
-                    if (cacheRes > limit) {
-                        res.status(429).send('Rate limited')
-                        return
+            return (limit: number, expire: number) =>
+                async (req: Request, res: Response, next: NextFunction) => {
+                    const ip = req.ip
+                    const path = req.path
+                    const key = `ratelimit:${ip}:${path}`
+                    try {
+                        const cacheRes = await this.redisClient.incr(key)
+                        if (cacheRes > limit) {
+                            res.status(429).send('Rate limited')
+                            return
+                        }
+                    } catch (err) {
+                        next(err)
                     }
-                } catch (err) {
-                    next(err)
-                }
 
-                await this.redisClient.expire(key, expire)
-                next()
-            }
+                    await this.redisClient.expire(key, expire)
+                    next()
+                }
         }
 
         if (this.config.per.includes('ip')) {
-            return (limit: number, expire: number) => async (req: Request, res: Response, next: NextFunction) => {
+            return (limit: number, expire: number) =>
+                async (req: Request, res: Response, next: NextFunction) => {
+                    const ip = req.ip
+                    const key = `ratelimit:${ip}`
+                    try {
+                        const cacheRes = await this.redisClient.incr(key)
+                        if (cacheRes > limit) {
+                            res.status(429).send('Rate limited')
+                            return
+                        }
+                    } catch (err) {
+                        next(err)
+                    }
+
+                    await this.redisClient.expire(key, expire)
+                    next()
+                }
+        }
+
+        if (this.config.per.includes('path')) {
+            return (limit: number, expire: number) =>
+                async (req: Request, res: Response, next: NextFunction) => {
+                    const path = req.path
+                    const key = `ratelimit:${path}`
+                    try {
+                        const cacheRes = await this.redisClient.incr(key)
+                        if (cacheRes > limit) {
+                            res.status(429).send('Rate limited')
+                            return
+                        }
+                    } catch (err) {
+                        next(err)
+                    }
+
+                    await this.redisClient.expire(key, expire)
+                    next()
+                }
+        }
+
+        return (limit: number, expire: number) =>
+            async (req: Request, res: Response, next: NextFunction) => {
                 const ip = req.ip
                 const key = `ratelimit:${ip}`
                 try {
@@ -69,42 +112,5 @@ export class RateLimiter {
                 await this.redisClient.expire(key, expire)
                 next()
             }
-        }
-
-        if (this.config.per.includes('path')) {
-            return (limit: number, expire: number) => async (req: Request, res: Response, next: NextFunction) => {
-                const path = req.path
-                const key = `ratelimit:${path}`
-                try {
-                    const cacheRes = await this.redisClient.incr(key)
-                    if (cacheRes > limit) {
-                        res.status(429).send('Rate limited')
-                        return
-                    }
-                } catch (err) {
-                    next(err)
-                }
-
-                await this.redisClient.expire(key, expire)
-                next()
-            }
-        }
-
-        return (limit: number, expire: number) => async (req: Request, res: Response, next: NextFunction) => {
-            const ip = req.ip
-            const key = `ratelimit:${ip}`
-            try {
-                const cacheRes = await this.redisClient.incr(key)
-                if (cacheRes > limit) {
-                    res.status(429).send('Rate limited')
-                    return
-                }
-            } catch (err) {
-                next(err)
-            }
-
-            await this.redisClient.expire(key, expire)
-            next()
-        }
     }
 }

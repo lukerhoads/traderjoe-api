@@ -1,6 +1,11 @@
 import { BigNumber, Contract, ethers } from 'ethers'
 import express from 'express'
-import { Address, BigNumberMantissa, BigNumberZero } from '../constants'
+import {
+    Address,
+    BigNumberMantissa,
+    BigNumberZero,
+    CachePrefix,
+} from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
 import {
@@ -15,6 +20,8 @@ import { Controller } from './controller'
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
 import ERC20ABI from '../../abi/ERC20.json'
+import { Cache } from '../cache'
+import { getCacheKey } from '../util/cache-key'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -24,6 +31,7 @@ const JoetrollerContract = new ethers.Contract(
 
 export class BankerController implements Controller {
     private config: OpConfig
+    private cache: Cache
 
     private jTokenContract: Contract
     private underlyingContract: Contract
@@ -37,18 +45,23 @@ export class BankerController implements Controller {
     private totalBorrow: BigNumber = BigNumber.from('0')
 
     private cachedMarketSupply: { [address: string]: BigNumber } = {}
-    private cachedMarketBorrow: { [address: string]: BigNumber } = {}
+    // private cachedMarketBorrow: { [address: string]: BigNumber } = {}
 
-    private cachedUserSupply: { [address: string]: BigNumber } = {}
-    private cachedUserBorrow: { [address: string]: BigNumber } = {}
+    // private cachedUserSupply: { [address: string]: BigNumber } = {}
+    // private cachedUserBorrow: { [address: string]: BigNumber } = {}
 
-    private cachedMarketSupplyApy: { [address: string]: BigNumber } = {}
-    private cachedMarketBorrowApy: { [address: string]: BigNumber } = {}
+    // private cachedMarketSupplyApy: { [address: string]: BigNumber } = {}
+    // private cachedMarketBorrowApy: { [address: string]: BigNumber } = {}
 
-    private cachedUserNetApy: { [address: string]: BigNumber } = {}
+    // private cachedUserNetApy: { [address: string]: BigNumber } = {}
 
-    constructor(config: OpConfig, priceController: PriceController) {
+    constructor(
+        config: OpConfig,
+        cache: Cache,
+        priceController: PriceController
+    ) {
         this.config = config
+        this.cache = cache
         this.priceController = priceController
         this.jTokenContract = new ethers.Contract(
             Address.JAVAX_ADDRESS,
@@ -74,13 +87,13 @@ export class BankerController implements Controller {
     }
 
     private clearCache() {
-        this.cachedMarketSupply = {}
-        this.cachedMarketBorrow = {}
-        this.cachedUserSupply = {}
-        this.cachedUserBorrow = {}
-        this.cachedMarketSupplyApy = {}
-        this.cachedMarketBorrowApy = {}
-        this.cachedUserNetApy = {}
+        // this.cachedMarketSupply = {}
+        // this.cachedMarketBorrow = {}
+        // this.cachedUserSupply = {}
+        // this.cachedUserBorrow = {}
+        // this.cachedMarketSupplyApy = {}
+        // this.cachedMarketBorrowApy = {}
+        // this.cachedUserNetApy = {}
     }
 
     protected async resetTotals() {
@@ -104,8 +117,11 @@ export class BankerController implements Controller {
             throw new Error('Invalid market address provided.')
         }
 
-        if (this.cachedMarketSupply[marketAddress]) {
-            return this.cachedMarketSupply[marketAddress]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'supplyByMarket')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
@@ -122,14 +138,22 @@ export class BankerController implements Controller {
         const totalSupply = jTokenTotalSupply
             .mul(exchangeRate)
             .mul(underlyingPrice)
-        this.cachedMarketSupply[marketAddress] = totalSupply.div(divisor)
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'supplyByMarket'),
+            totalSupply.div(divisor),
+            this.config.bankRefreshTimeout
+        )
 
         // Get borrow too, so we don't have to re-attach for the next borrow request
         const totalBorrow = await customContract.totalBorrows()
         const adjustedBorrow = totalBorrow
             .mul(underlyingPrice)
             .div(BigNumberMantissa)
-        this.cachedMarketBorrow[marketAddress] = adjustedBorrow
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'supplyByMarket'),
+            adjustedBorrow,
+            this.config.bankRefreshTimeout
+        )
         return totalSupply.div(divisor)
     }
 
@@ -138,8 +162,11 @@ export class BankerController implements Controller {
             throw new Error('Invalid market address provided.')
         }
 
-        if (this.cachedMarketBorrow[marketAddress]) {
-            return this.cachedMarketBorrow[marketAddress]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'borrowByMarket')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
@@ -152,7 +179,11 @@ export class BankerController implements Controller {
         const adjustedBorrow = totalBorrows
             .mul(underlyingPrice)
             .div(BigNumberMantissa)
-        this.cachedMarketBorrow[marketAddress] = adjustedBorrow
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'borrowByMarket'),
+            adjustedBorrow,
+            this.config.bankRefreshTimeout
+        )
         return adjustedBorrow
     }
 
@@ -161,8 +192,11 @@ export class BankerController implements Controller {
             throw new Error('Invalid market address provided.')
         }
 
-        if (this.cachedMarketSupplyApy[marketAddress]) {
-            return this.cachedMarketSupplyApy[marketAddress]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'supplyApyByMarket')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
@@ -171,7 +205,11 @@ export class BankerController implements Controller {
             period: '1s',
             rate: supplyRatePerSecond,
         })
-        this.cachedMarketSupplyApy[marketAddress] = rate
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'supplyApyByMarket'),
+            rate,
+            this.config.bankRefreshTimeout
+        )
         return rate
     }
 
@@ -180,23 +218,33 @@ export class BankerController implements Controller {
             throw new Error('Invalid market address provided.')
         }
 
-        if (this.cachedMarketBorrowApy[marketAddress]) {
-            return this.cachedMarketBorrowApy[marketAddress]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'borrowApyByMarket')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const customContract = this.jTokenContract.attach(marketAddress)
         const borrowRatePerSecond = await customContract.borrowRatePerSecond()
-        let apr = rateToYear({
+        let rate = rateToYear({
             period: '1s',
             rate: borrowRatePerSecond,
         })
-        this.cachedMarketBorrowApy[marketAddress] = apr
-        return apr
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, marketAddress, 'borrowApyByMarket'),
+            rate,
+            this.config.bankRefreshTimeout
+        )
+        return rate
     }
 
     protected async getUserSupply(user: string) {
-        if (this.cachedUserSupply[user]) {
-            return this.cachedUserSupply[user]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, user, 'userSupply')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const assetsIn = await JoetrollerContract.getAssetsIn(user)
@@ -234,13 +282,20 @@ export class BankerController implements Controller {
             userSupply = userSupply.add(totalSupplied[i])
         }
 
-        this.cachedUserSupply[user] = userSupply
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, user, 'userSupply'),
+            userSupply,
+            this.config.bankRefreshTimeout
+        )
         return userSupply
     }
 
     protected async getUserBorrow(user: string) {
-        if (this.cachedUserBorrow[user]) {
-            return this.cachedUserBorrow[user]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, user, 'userBorrow')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const assetsIn = await JoetrollerContract.getAssetsIn(user)
@@ -279,13 +334,20 @@ export class BankerController implements Controller {
             userBorrow = userBorrow.add(totalBorrowed[i])
         }
 
-        this.cachedUserBorrow[user] = userBorrow
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, user, 'userBorrow'),
+            userBorrow,
+            this.config.bankRefreshTimeout
+        )
         return userBorrow
     }
 
     protected async getUserNetApy(user: string) {
-        if (this.cachedUserNetApy[user]) {
-            return this.cachedUserNetApy[user]
+        const cachedValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.banker, user, 'userNetApy')
+        )
+        if (cachedValue) {
+            return cachedValue
         }
 
         const assetsIn = await JoetrollerContract.getAssetsIn(user)
@@ -321,7 +383,11 @@ export class BankerController implements Controller {
             netApy = netApy.add(allApys[i])
         }
 
-        this.cachedUserNetApy[user] = netApy
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.banker, user, 'userNetApy'),
+            netApy,
+            this.config.bankRefreshTimeout
+        )
         return netApy
     }
 

@@ -4,7 +4,7 @@ import pretty from 'pino-pretty'
 import { isProd } from './config'
 
 const prettyOpts = pretty({
-    colorize: true
+    colorize: true,
 })
 
 export const appLogger = isProd ? pino() : pino(prettyOpts)

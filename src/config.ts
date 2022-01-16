@@ -17,6 +17,7 @@ export interface OpConfig {
     metricsRefreshTimeout: number
     poolRefreshTimeout: number
     stakeRefreshTimeout: number
+    pairRefreshTimeout: number
 
     temporalRefreshTimeout: number
 
@@ -40,6 +41,7 @@ const opConfig: OpConfig = {
     metricsRefreshTimeout: 60000,
     poolRefreshTimeout: 60000,
     stakeRefreshTimeout: 60000,
+    pairRefreshTimeout: 60000,
 
     temporalRefreshTimeout: 9e4, // About a day
 

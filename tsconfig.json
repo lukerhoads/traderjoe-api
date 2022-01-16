@@ -15,7 +15,5 @@
     },
     "include": ["src/**/*", "abi/**/*"],
     "exclude": ["node_modules"],
-    "files": [
-        "noop.ts"
-    ]
+    "files": ["noop.ts"]
 }

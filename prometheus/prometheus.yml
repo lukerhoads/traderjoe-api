@@ -1,0 +1,7 @@
+scrape_configs:
+    - job_name: 'traderjoe-api'
+      metrics_path: /metrics
+      static_configs:
+          - targets:
+                - 'prometheus:9090'
+                - 'localhost:3000'

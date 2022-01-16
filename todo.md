@@ -8,18 +8,21 @@
 # Required Information
 
 ### Pools
+
 -   Liquidity (TVL of pool, balanceof token0 and token1 combined)
 -   24h volume
 -   24h fees
 -   APR
 
 ### Farms
+
 -   Weight
 -   Liquidity
 -   APR
 -   Bonus APR
 
 ### Money markets
+
 -   Net APY of user
 -   Rewards APR of user
 -   APY of lend/borrow pool

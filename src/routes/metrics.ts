@@ -10,7 +10,7 @@ import {
     lastDayVolume,
     volumeOverTimeQuery,
 } from '../queries'
-import { Address } from '../constants'
+import { Address, CachePrefix } from '../constants'
 import { getRandomProvider } from '../provider'
 import { PriceController } from './price'
 import { parseUnits } from '@ethersproject/units'
@@ -25,6 +25,8 @@ import { OpConfig } from '../config'
 
 import JoetrollerABI from '../../abi/Joetroller.json'
 import JTokenABI from '../../abi/JToken.json'
+import { Cache } from '../cache'
+import { getCacheKey } from '../util/cache-key'
 
 const JoetrollerContract = new ethers.Contract(
     Address.JOETROLLER_ADDRESS,
@@ -35,6 +37,7 @@ const JoetrollerContract = new ethers.Contract(
 export class MetricsController {
     private config: OpConfig
 
+    private cache: Cache
     private exchangeGraphClient: ApolloClient<NormalizedCacheObject>
     private priceController: PriceController
 
@@ -44,8 +47,13 @@ export class MetricsController {
 
     private cachedVolume: { [key in TimePeriod]?: BigNumber } = {}
 
-    constructor(config: OpConfig, priceController: PriceController) {
+    constructor(
+        config: OpConfig,
+        cache: Cache,
+        priceController: PriceController
+    ) {
         this.config = config
+        this.cache = cache
         this.exchangeGraphClient = new ApolloClient<NormalizedCacheObject>({
             uri: config.exchangeGraphUrl,
             cache: new InMemoryCache(),
@@ -65,7 +73,6 @@ export class MetricsController {
 
     protected async resetMetrics() {
         const [tvl] = await Promise.all([this.getTvl()])
-
         this.tvl = tvl
     }
 
@@ -137,8 +144,11 @@ export class MetricsController {
     }
 
     public async getVolume(period: TimePeriod = '1d') {
-        if (this.cachedVolume[period]) {
-            return this.cachedVolume[period]!
+        const cacheValue = await this.cache.getBn(
+            getCacheKey(CachePrefix.metrics, period, 'volume')
+        )
+        if (cacheValue) {
+            return cacheValue
         }
 
         if (period === '1d') {
@@ -185,6 +195,11 @@ export class MetricsController {
             volumeSum = volumeSum.add(stringToBn(dayData.volumeUSD, 18))
         }
 
+        await this.cache.setBn(
+            getCacheKey(CachePrefix.metrics, period, 'volume'),
+            volumeSum,
+            this.config.metricsRefreshTimeout
+        )
         return volumeSum
     }
 

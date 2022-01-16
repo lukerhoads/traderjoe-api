@@ -24,13 +24,14 @@ Useful GraphQL reference:
 -   https://thegraph.com/hosted-service/subgraph/traderjoe-xyz/dexcandles
 
 ## Features
-- Containerized, with docker-compose which requires all components
-- Metrics with (Prometheus)[https://prometheus.io/] and visualization with [Grafana](https://grafana.com/)
-- All metrics, including:
-    - TVL (platform, pair, pool, market)
-    - Volume (pair)
-    - APR (user, pair, pool, market)
-- Backwards compatible with (TraderJoe API)[https://github.com/traderjoe-xyz/joe-api] (mostly)
-- Swagger documentation
-- Per IP and path rate limiting
-- React client library for easy integration
+
+-   Containerized, with docker-compose which requires all components
+-   Metrics with (Prometheus)[https://prometheus.io/] and visualization with [Grafana](https://grafana.com/)
+-   All metrics, including:
+    -   TVL (platform, pair, pool, market)
+    -   Volume (pair)
+    -   APR (user, pair, pool, market)
+-   Backwards compatible with (TraderJoe API)[https://github.com/traderjoe-xyz/joe-api] (mostly)
+-   Swagger documentation
+-   Per IP and path rate limiting
+-   React client library for easy integration
