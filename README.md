@@ -1,6 +1,6 @@
-# TraderJoe Analytics Backend
+# TraderJoe API
 
-Backend that actively monitors and calculates data points needed in the Trader Joe frontend.
+API that actively monitors and calculates data points on Trader Joe.
 
 Submission for the [Moralis Hackathon](https://moralis.io/avalanche-hackathon/) (12/6/21 - 1/31/22)
 
