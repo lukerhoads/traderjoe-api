@@ -1,10 +1,9 @@
 FROM node:16-alpine as builder
 WORKDIR /usr/src/app
 COPY package.json tsconfig.json yarn.lock noop.ts src ./
-RUN yarn add typescript && \
+RUN yarn global add typescript && \
     yarn install --production && \
     yarn run build && \
-    yarn run prune && \
     yarn cache clean
 RUN yarn build
 
