@@ -3,8 +3,8 @@ import express from 'express'
 import { MetricsController, PriceController } from '.'
 import { OpConfig } from '../config'
 import { TimePeriod } from '../types'
-import { formatRes, bnStringToDecimal, rateToYear } from '../util'
-import { BigNumberMantissa, STAKING_FEE_RATE } from '../constants'
+import { formatRes, bnStringToDecimal, rateToYear, getCacheKey, getGeneralCacheKey, validatePeriod } from '../util'
+import { BigNumberMantissa, CachePrefix, STAKING_FEE_RATE } from '../constants'
 import { getRandomProvider } from '../provider'
 import { Address } from '../constants'
 import { Cache } from '../cache'
@@ -68,10 +68,8 @@ export class StakeController {
 
     public async getStakingRewards(samplePeriod: TimePeriod) {
         const cachedStakeRewards =
-            this.stakingRewardsIncludesPeriod(samplePeriod)
-        if (cachedStakeRewards) {
-            return rateToYear(cachedStakeRewards)
-        }
+            await this.cache.getPeriodRate(getCacheKey(CachePrefix.stake, samplePeriod, 'rewards'))
+        if (cachedStakeRewards) return cachedStakeRewards.rate
 
         const periodVolume = await this.metricsController.getVolume(
             samplePeriod
@@ -87,8 +85,13 @@ export class StakeController {
             period: samplePeriod,
             rate: fees.mul(BigNumberMantissa).div(totalStakedUSD),
         }
-        this.cachedStakingRewards.push(periodApr)
-        return rateToYear(periodApr)
+        const rate = rateToYear(periodApr)
+        await this.cache.setPeriodRate(
+            getCacheKey(CachePrefix.stake, samplePeriod, 'rewards'),
+            { period: samplePeriod, rate: rate },
+            this.config.stakeRefreshTimeout
+        )
+        return rate
     }
 
     get apiRouter() {
@@ -96,6 +99,7 @@ export class StakeController {
 
         router.get('/apr', async (req, res, next) => {
             const samplePeriod = req.query.period as TimePeriod
+            if (!validatePeriod(req.query.period as string)) next('Invalid period: ' + req.query.period)
             try {
                 const stakingApr = await this.getStakingRewards(samplePeriod)
                 res.send(

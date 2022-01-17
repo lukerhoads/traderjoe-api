@@ -2,7 +2,7 @@ import express from 'express'
 import { getRandomProvider } from '../provider'
 import { Address, BigNumberMantissa, CachePrefix } from '../constants'
 import { BigNumber, Contract, ethers } from 'ethers'
-import { bnStringToDecimal, formatRes, getCacheKey } from '../util'
+import { bnStringToDecimal, formatRes, getCacheKey, validateAddress } from '../util'
 import { OpConfig } from '../config'
 import { Cache } from '../cache'
 
@@ -62,6 +62,8 @@ export class PriceController {
         // Query param or part of url?
         router.get('/usd/:tokenAddress', async (req, res, next) => {
             const tokenAddress = req.params.tokenAddress.toLowerCase()
+            const err = validateAddress(tokenAddress)
+            if (err) next(err)
             try {
                 const tokenPrice = await this.getPrice(tokenAddress, false)
                 const tokenPriceString = tokenPrice.toString()
@@ -73,6 +75,8 @@ export class PriceController {
 
         router.get('/avax/:tokenAddress', async (req, res, next) => {
             const tokenAddress = req.params.tokenAddress.toLowerCase()
+            const err = validateAddress(tokenAddress)
+            if (err) next(err)
             try {
                 const tokenPrice = await this.getPrice(tokenAddress, true)
                 const tokenPriceString = tokenPrice.toString()

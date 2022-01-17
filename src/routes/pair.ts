@@ -17,6 +17,8 @@ import {
     getCacheKey,
     getMantissaBigNumber,
     stringToBn,
+    validateAddress,
+    validatePeriod,
 } from '../util'
 import { OpConfig } from '../config'
 import { Cache } from '../cache'
@@ -124,7 +126,7 @@ export class PairController {
         period: TimePeriod = '1d'
     ) {
         const cachedValue = await this.cache.getBn(
-            getCacheKey(CachePrefix.pair, pairAddress, 'volume')
+            getCacheKey(CachePrefix.pair, period, pairAddress, 'volume')
         )
         if (cachedValue) return cachedValue
 
@@ -166,7 +168,7 @@ export class PairController {
         const periodVolumeUSDBn = stringToBn(periodVolumeUSD, 18)
         const volume = volumeUSDBn.sub(periodVolumeUSDBn)
         await this.cache.setBn(
-            getCacheKey(CachePrefix.pair, pairAddress, 'volume'),
+            getCacheKey(CachePrefix.pair, period, pairAddress, 'volume'),
             volume,
             this.config.pairRefreshTimeout
         )
@@ -217,6 +219,8 @@ export class PairController {
 
         router.get('/:pairAddress/liquidity', async (req, res, next) => {
             const pairAddress = req.params.pairAddress.toLowerCase()
+            const err = validateAddress(pairAddress)
+            if (err) next(err)
             try {
                 const pairTvl = await this.getPairLiquidity(pairAddress)
                 const pairTvlString = pairTvl.toString()
@@ -229,7 +233,11 @@ export class PairController {
         // Query params for period
         router.get('/:pairAddress/volume', async (req, res, next) => {
             const pairAddress = req.params.pairAddress.toLowerCase()
+            const err = validateAddress(pairAddress)
+            if (err) next(err)
             const period = req.query.period as TimePeriod
+            const err2 = validatePeriod(period)
+            if (err2) next(err2)
             try {
                 const pairVolume = await this.getPairVolume(pairAddress, period)
                 res.send(formatRes(pairVolume.toString()))
@@ -240,6 +248,10 @@ export class PairController {
 
         router.get('/:pairAddress/fees', async (req, res, next) => {
             const pairAddress = req.params.pairAddress.toLowerCase()
+            const err = validateAddress(pairAddress)
+            if (err) next(err)
+            const err2 = validatePeriod(req.query.period as string)
+            if (err2) next(err2)
             const period = req.query.period as TimePeriod
             try {
                 const feesCollected = await this.getPairFees(
@@ -254,6 +266,10 @@ export class PairController {
 
         router.get('/:pairAddress/apr', async (req, res, next) => {
             const pairAddress = req.params.pairAddress.toLowerCase()
+            const err = validateAddress(pairAddress)
+            if (err) next(err)
+            const err2 = validatePeriod(req.query.period as string)
+            if (err2) next(err2)
             const samplePeriod = req.query.period as TimePeriod
             try {
                 const poolApr = await this.getPairAprGraph(

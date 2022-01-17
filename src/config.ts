@@ -46,7 +46,7 @@ const opConfig: OpConfig = {
     temporalRefreshTimeout: 9e4, // About a day
 
     rateLimitBy: ['ip'],
-    rateLimit: 5,
+    rateLimit: 100,
     rateLimitExpire: 3600, // one hour in seconds
 }
 

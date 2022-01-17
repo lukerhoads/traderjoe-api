@@ -23,6 +23,7 @@ import client from 'prom-client'
 import { customMetrics, httpRequestTimer } from './metrics'
 import responseTime from 'response-time'
 import { Cache } from './cache'
+import cors from 'cors'
 
 const swaggerDoc = YAML.load('./openapi.yaml')
 
@@ -40,8 +41,8 @@ export class Server {
         this.app = express()
         this.controllers = []
         this.cache = new Cache({
-            host: this.config.config.redisHost,
-            port: this.config.config.redisPort,
+            redisHost: this.config.config.redisHost,
+            redisPort: this.config.config.redisPort,
             defaultExpiry: 60,
         })
         this.promRegister = new client.Registry()
@@ -57,8 +58,12 @@ export class Server {
     }
 
     public async init() {
+        await this.cache.init()
         this.setupDocs()
         this.app.set('trust proxy', true)
+        this.app.use(cors({
+            origin: '*'
+        }))
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
         this.app.use(loggerMiddleware)

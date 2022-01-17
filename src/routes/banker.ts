@@ -13,6 +13,7 @@ import {
     bnStringToDecimal,
     formatRes,
     rateToYear,
+    validateAddress,
 } from '../util'
 import { OpConfig } from '../config'
 import { Controller } from './controller'
@@ -44,7 +45,7 @@ export class BankerController implements Controller {
     private totalSupply: BigNumber = BigNumber.from('0')
     private totalBorrow: BigNumber = BigNumber.from('0')
 
-    private cachedMarketSupply: { [address: string]: BigNumber } = {}
+    // private cachedMarketSupply: { [address: string]: BigNumber } = {}
     // private cachedMarketBorrow: { [address: string]: BigNumber } = {}
 
     // private cachedUserSupply: { [address: string]: BigNumber } = {}
@@ -396,16 +397,18 @@ export class BankerController implements Controller {
 
         // Total supply and borrow across pools
         router.get('/supply', async (req, res, next) => {
-            res.send(formatRes(this.totalSupply.toString()))
+            res.send(formatRes(bnStringToDecimal(this.totalSupply.toString(), 18)))
         })
 
         router.get('/borrow', async (req, res, next) => {
-            res.send(formatRes(this.totalBorrow.toString()))
+            res.send(formatRes(bnStringToDecimal(this.totalBorrow.toString(), 18)))
         })
 
         // Total supply and borrow across one pool
         router.get('/supply/:marketAddress', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
+            const err = validateAddress(marketAddress)
+            if (err) next(err)
             try {
                 const supplyByMarket = await this.getSupplyByMarket(
                     marketAddress
@@ -419,6 +422,8 @@ export class BankerController implements Controller {
 
         router.get('/borrow/:marketAddress', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
+            const err = validateAddress(marketAddress)
+            if (err) next(err)
             try {
                 const borrowByMarket = await this.getBorrowByMarket(
                     marketAddress
@@ -432,6 +437,8 @@ export class BankerController implements Controller {
 
         router.get('/supply/:marketAddress/apy', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
+            const err = validateAddress(marketAddress)
+            if (err) next(err)
             try {
                 const supplyApy = await this.getSupplyApyByMarket(marketAddress)
                 const supplyApyString = supplyApy.toString()
@@ -444,6 +451,8 @@ export class BankerController implements Controller {
         // Supply and borrow APY for a single market
         router.get('/borrow/:marketAddress/apy', async (req, res, next) => {
             const marketAddress = req.params.marketAddress.toLowerCase()
+            const err = validateAddress(marketAddress)
+            if (err) next(err)
             try {
                 const borrowApy = await this.getBorrowApyByMarket(marketAddress)
                 const borrowApyString = borrowApy.toString()
@@ -455,6 +464,8 @@ export class BankerController implements Controller {
 
         router.get('/supply/user/:userAddress', async (req, res, next) => {
             const user = req.params.userAddress.toLowerCase()
+            const err = validateAddress(user)
+            if (err) next(err)
             try {
                 const supply = await this.getUserSupply(user)
                 const supplyString = supply.toString()
@@ -467,6 +478,8 @@ export class BankerController implements Controller {
         // Supply and borrow APY for an individual user
         router.get('/borrow/user/:userAddress', async (req, res, next) => {
             const user = req.params.userAddress.toLowerCase()
+            const err = validateAddress(user)
+            if (err) next(err)
             try {
                 const borrow = await this.getUserBorrow(user)
                 const borrowString = borrow.toString()
@@ -477,10 +490,11 @@ export class BankerController implements Controller {
         })
 
         router.get('/:userAddress/net/apy', async (req, res, next) => {
-            const userAddress = req.params.userAddress.toLowerCase()
-
+            const user = req.params.userAddress.toLowerCase()
+            const err = validateAddress(user)
+            if (err) next(err)
             try {
-                const netApy = await this.getUserNetApy(userAddress)
+                const netApy = await this.getUserNetApy(user)
                 const netApyString = netApy.toString()
                 res.send(formatRes(bnStringToDecimal(netApyString, 18)))
             } catch (err) {

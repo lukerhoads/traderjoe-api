@@ -14,38 +14,39 @@ services:
             - ./prometheus:/etc/prometheus
             - prometheus_data:/prometheus
         ports:
-            - '9090:9090'
-        expose:
-            - 9090
+            - 9090:9090
         networks:
             - monitoring
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
     grafana:
         image: grafana/grafana:latest
         container_name: grafana
         volumes:
             - grafana_data:/var/lib/grafana
-            - ./grafana/provisioning:/etc/grafana/provisioning
+            - ./grafana:/etc/grafana/provisioning/datasources
         environment:
             - GF_AUTH_DISABLE_LOGIN_FORM=true
             - GF_AUTH_ANONYMOUS_ENABLED=true
             - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
         ports:
-            - '3001:3001'
-        expose:
-            - 3001
+            - 3001:3001
         networks:
             - monitoring
+        extra_hosts:
+            - "host.docker.internal:host-gateway"
     redis:
-        image: redis:6.2-alpine
-        ports:
-            - '${REDIS_PORT:-6379}:6379'
+        image: redis:6-alpine
+        container_name: redis
+        # command: ["redis-server", "--bind", "redis", "--port", "6379"]
         networks:
-            - monitoring
-    server:
+          - monitoring
+        ports:
+          - 6379:6379
+    traderjoe-api:
         build: .
         volumes:
             - .:/usr/src/app
-        # image: lukerhoads/traderjoe_api:latest
         environment:
             - NODE_ENV="${NODE_ENV}"
             - NETWORK="${NETWORK}"
@@ -54,13 +55,19 @@ services:
             - REDIS_HOST="${REDIS_HOST}"
             - REDIS_PORT="${REDIS_PORT}"
         ports:
-            - '3000:3000'
-        expose:
-            - 3000
+            - 3000:3000
         depends_on:
             - redis
         networks:
-            - monitoring
+          - monitoring
+        links: 
+          - redis
         # deploy:
         #   mode: replicated
         #   replicas: 3
+    debugbox:
+        image: alpine:latest
+        networks:
+          - monitoring
+        stdin_open: true 
+        tty: true

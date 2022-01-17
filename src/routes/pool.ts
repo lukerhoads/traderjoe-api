@@ -5,7 +5,6 @@ import {
     NormalizedCacheObject,
 } from '@apollo/client/core'
 import { BigNumber, Contract, ethers } from 'ethers'
-
 import { Address, CachePrefix } from '../constants'
 import { getRandomProvider } from '../provider'
 import { poolById, poolByPair } from '../queries'
@@ -17,6 +16,8 @@ import {
     convertPeriod,
     secondsToPeriod,
     getCacheKey,
+    validatePoolId,
+    validatePeriod,
 } from '../util'
 import { TimePeriod, PeriodRate } from '../types'
 import { OpConfig } from '../config'
@@ -54,10 +55,10 @@ export class PoolController {
     private temporalRefreshInterval: NodeJS.Timer
 
     private cache: Cache
-    private cachedPairLiquidity: { [address: string]: BigNumber } = {}
-    private cachedPoolApr: { [address: string]: PeriodRate } = {}
-    private cachedPoolBonusApr: { [address: string]: PeriodRate } = {}
-    private cachedPoolTvl: { [address: string]: BigNumber } = {}
+    // private cachedPairLiquidity: { [address: string]: BigNumber } = {}
+    // private cachedPoolApr: { [address: string]: PeriodRate } = {}
+    // private cachedPoolBonusApr: { [address: string]: PeriodRate } = {}
+    // private cachedPoolTvl: { [address: string]: BigNumber } = {}
 
     constructor(
         config: OpConfig,
@@ -92,13 +93,13 @@ export class PoolController {
 
     public async init() {
         this.hardRefreshInterval = setInterval(async () => {
-            this.cachedPoolTvl = {}
-            this.cachedPairLiquidity = {}
+            // this.cachedPoolTvl = {}
+            // this.cachedPairLiquidity = {}
         }, this.config.poolRefreshTimeout)
 
         this.temporalRefreshInterval = setInterval(async () => {
-            this.cachedPoolApr = {}
-            this.cachedPoolBonusApr = {}
+            // this.cachedPoolApr = {}
+            // this.cachedPoolBonusApr = {}
         }, this.config.temporalRefreshTimeout)
     }
 
@@ -196,13 +197,7 @@ export class PoolController {
         const cachedValue = await this.cache.getPeriodRate(
             getCacheKey(CachePrefix.pool, poolId, 'apr')
         )
-        if (cachedValue) {
-            if (cachedValue.period != samplePeriod) {
-                return convertPeriod(cachedValue, samplePeriod)
-            }
-
-            return cachedValue.period
-        }
+        if (cachedValue) return cachedValue.rate
 
         const joePrice = await this.priceController.getPrice(
             Address.JOE_ADDRESS,
@@ -225,9 +220,9 @@ export class PoolController {
         const roiPerSec = rewardsPerSec.mul(joePrice).div(balanceUSD)
 
         const rate = secondsToPeriod(roiPerSec, samplePeriod)
-        await this.cache.setBn(
+        await this.cache.setPeriodRate(
             getCacheKey(CachePrefix.pool, poolId, 'apr'),
-            rate,
+            { period: samplePeriod, rate: rate },
             this.config.poolRefreshTimeout
         )
         return rate
@@ -242,7 +237,7 @@ export class PoolController {
     }
 
     protected async getPoolTvl(poolId: string) {
-        const cachedValue = this.cache.getBn(
+        const cachedValue = await this.cache.getBn(
             getCacheKey(CachePrefix.pool, poolId, 'tvl')
         )
         if (cachedValue) return cachedValue
@@ -276,13 +271,7 @@ export class PoolController {
         const cachedValue = await this.cache.getPeriodRate(
             getCacheKey(CachePrefix.pool, poolId, 'bonusApr')
         )
-        if (cachedValue) {
-            if (cachedValue.period != samplePeriod) {
-                return convertPeriod(cachedValue, samplePeriod)
-            }
-
-            return cachedValue.rate
-        }
+        if (cachedValue) return cachedValue.rate
 
         const poolInfo = await MasterChefContract.poolInfo(poolId)
         const rewarderAddress = poolInfo[4]
@@ -305,9 +294,9 @@ export class PoolController {
         const roiPerSec = tokenPerSec.mul(rewardTokenPrice).div(balanceUSD)
 
         let rate = secondsToPeriod(roiPerSec, samplePeriod)
-        await this.cache.setBn(
+        await this.cache.setPeriodRate(
             getCacheKey(CachePrefix.pool, poolId, 'bonusApr'),
-            rate,
+            { period: samplePeriod, rate: rate },
             this.config.poolRefreshTimeout
         )
         return rate
@@ -320,6 +309,8 @@ export class PoolController {
 
         router.get('/:poolId/liquidity', async (req, res, next) => {
             const poolId = req.params.poolId
+            const err = validatePoolId(poolId)
+            if (err) next(err)
             try {
                 const poolTvl = await this.getPoolTvl(poolId)
                 res.send(formatRes(bnStringToDecimal(poolTvl.toString(), 18)))
@@ -330,6 +321,9 @@ export class PoolController {
 
         router.get('/:poolId/apr', async (req, res, next) => {
             const poolId = req.params.poolId
+            const err = validatePoolId(poolId)
+            if (err) next(err)
+            if (!validatePeriod(req.query.period as string)) next('Invalid period: ' + req.query.period)
             const samplePeriod = req.query.period as TimePeriod
             try {
                 const poolApr = await this.getPoolApr(poolId, samplePeriod)
@@ -341,6 +335,9 @@ export class PoolController {
 
         router.get('/:poolId/apr/bonus', async (req, res, next) => {
             const poolId = req.params.poolId
+            const err = validatePoolId(poolId)
+            if (err) next(err)
+            if (!validatePeriod(req.query.period as string)) next('Invalid period: ' + req.query.period)
             const samplePeriod = req.query.period as TimePeriod
             try {
                 const poolApr = await this.getPoolBonus(poolId, samplePeriod)

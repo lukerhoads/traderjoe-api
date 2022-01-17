@@ -3,8 +3,8 @@ import { createClient } from 'redis'
 import { PeriodRate, TimePeriod } from './types'
 
 export interface CacheConfig {
-    host: string
-    port: number
+    redisHost: string
+    redisPort: number
     defaultExpiry: number
 }
 
@@ -15,8 +15,22 @@ export class Cache {
     constructor(config: CacheConfig) {
         this.config = config
         this.redisClient = createClient({
-            url: `redis://${config.host}:${config.port}`,
+            url: `redis://${config.redisHost}:${config.redisPort}`,
         })
+
+        this.redisClient.on('error', (err) => {
+            console.error("Redis error encountered: ", err)
+        })
+
+        if (!this.redisClient) {
+            throw new Error(
+                `Redis could not connect to ${config.redisHost}:${config.redisPort}`
+            )
+        }
+    }
+
+    public async init() {
+        await this.redisClient.connect()
     }
 
     public async getPeriodRate(key: string): Promise<PeriodRate | undefined> {

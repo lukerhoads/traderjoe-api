@@ -19,6 +19,7 @@ import {
     bnStringToDecimal,
     formatRes,
     stringToBn,
+    validatePeriod,
 } from '../util'
 import { TimePeriod } from '../types'
 import { OpConfig } from '../config'
@@ -45,7 +46,7 @@ export class MetricsController {
 
     private tvl: BigNumber = BigNumber.from('0')
 
-    private cachedVolume: { [key in TimePeriod]?: BigNumber } = {}
+    // private cachedVolume: { [key in TimePeriod]?: BigNumber } = {}
 
     constructor(
         config: OpConfig,
@@ -85,6 +86,8 @@ export class MetricsController {
         })
 
         router.get('/volume', async (req, res, next) => {
+            const err = validatePeriod(req.query.period as string)
+            if (err) next(err)
             const period = req.query.period as TimePeriod
             const volume = await this.getVolume(period)
             res.send(formatRes(bnStringToDecimal(volume.toString(), 18)))

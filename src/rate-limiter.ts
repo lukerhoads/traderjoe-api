@@ -22,6 +22,10 @@ export class RateLimiter {
             url: `redis://${config.redisHost}:${config.redisPort}`,
         })
 
+        this.redisClient.on('error', (err) => {
+            console.error("Redis error encountered: ", err)
+        })
+
         if (!this.redisClient) {
             throw new Error(
                 `Redis could not connect to ${config.redisHost}:${config.redisPort}`
