@@ -13,7 +13,6 @@ import {
     bnStringToDecimal,
     formatRes,
     getMantissaBigNumber,
-    convertPeriod,
     secondsToPeriod,
     getCacheKey,
     validatePoolId,
