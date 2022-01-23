@@ -1,11 +1,13 @@
 import { NextFunction, Request, Response } from 'express'
-import { createClient } from 'redis'
+import Redis from 'ioredis'
+import { appLogger } from './logger'
 
 export type RateLimitFilter = 'ip' | 'path'
 
 export interface RateLimiterConfig {
     redisHost: string
     redisPort: number
+    redisPassword: string
     per: RateLimitFilter[]
     limit: number
     expire: number
@@ -14,16 +16,24 @@ export interface RateLimiterConfig {
 // Per IP rate limiter
 export class RateLimiter {
     private config: RateLimiterConfig
-    private redisClient: ReturnType<typeof createClient>
+    private redisClient: Redis.Redis
 
     constructor(config: RateLimiterConfig) {
         this.config = config
-        this.redisClient = createClient({
-            url: `redis://${config.redisHost}:${config.redisPort}`,
+        this.redisClient = new Redis({
+            host: config.redisHost,
+            port: config.redisPort,
+            password: config.redisPassword,
         })
 
-        this.redisClient.on('error', (err) => {
-            console.error("Redis error encountered: ", err)
+        // this.redisClient = new Redis(`redis://${config.redisHost}:${config.redisPort}/0`)
+
+        this.redisClient.on("error", (err: Error) => {
+            throw err
+        })
+
+        this.redisClient.on("ready", () => {
+            appLogger.info("Redis client ready")
         })
 
         if (!this.redisClient) {
@@ -34,7 +44,9 @@ export class RateLimiter {
     }
 
     public async init() {
-        await this.redisClient.connect()
+        if (this.redisClient.status != "connecting") {
+            await this.redisClient.connect()
+        }
     }
 
     public getMiddleware() {

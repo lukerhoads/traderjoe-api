@@ -55,6 +55,7 @@ export type AppConfig = OpConfig & {
     port: number
     redisHost: string
     redisPort: number
+    redisPassword: string
 }
 
 class Config {
@@ -76,8 +77,9 @@ class Config {
             ...this.opConfig,
             host: process.env.HOST || 'localhost',
             port: parseInt(process.env.PORT || '') || 3000,
-            redisHost: process.env.REDIS_HOST || 'localhost',
+            redisHost: process.env.REDIS_HOST?.split('"').join('') || 'redis',
             redisPort: parseInt(process.env.REDIS_PORT || '') || 6379,
+            redisPassword: process.env.REDIS_PASS || '',
         }
     }
 }

@@ -2,6 +2,8 @@ version: '3'
 
 networks:
     monitoring:
+        driver: bridge 
+    app:
         driver: bridge
 volumes:
     prometheus_data: {}
@@ -37,37 +39,39 @@ services:
             - "host.docker.internal:host-gateway"
     redis:
         image: redis:6-alpine
-        container_name: redis
-        # command: ["redis-server", "--bind", "redis", "--port", "6379"]
+        volumes:
+          - ./redis.conf:/usr/local/etc/redis/redis.conf
+        command:
+          - redis-server
+          - /usr/local/etc/redis/redis.conf
         networks:
-          - monitoring
+          - app
         ports:
           - 6379:6379
     traderjoe-api:
         build: .
         volumes:
-            - .:/usr/src/app
+          - .:/usr/src/app
+        user: root
         environment:
-            - NODE_ENV="${NODE_ENV}"
-            - NETWORK="${NETWORK}"
-            - HOST="${HOST}"
-            - PORT="${PORT}"
-            - REDIS_HOST="${REDIS_HOST}"
-            - REDIS_PORT="${REDIS_PORT}"
+          - NODE_ENV="${NODE_ENV}"
+          - NETWORK="${NETWORK}"
+          - HOST="${HOST}"
+          - PORT="${PORT}"
+          - REDIS_HOST="${REDIS_HOST}"
+          - REDIS_PORT="${REDIS_PORT}"
         ports:
-            - 3000:3000
+          - 3000:3000
         depends_on:
-            - redis
-        networks:
-          - monitoring
-        links: 
           - redis
+        networks:
+          - app 
         # deploy:
         #   mode: replicated
         #   replicas: 3
-    debugbox:
-        image: alpine:latest
-        networks:
-          - monitoring
-        stdin_open: true 
-        tty: true
+    # debugbox:
+    #     image: alpine:latest
+    #     networks:
+    #       - app
+    #     stdin_open: true 
+    #     tty: true

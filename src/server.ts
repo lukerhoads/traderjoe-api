@@ -17,7 +17,7 @@ import {
     MetricsController,
     StakeController,
 } from './routes'
-import { loggerMiddleware } from './logger'
+import { appLogger, loggerMiddleware } from './logger'
 import { RateLimiter } from './rate-limiter'
 import client from 'prom-client'
 import { customMetrics, httpRequestTimer } from './metrics'
@@ -43,6 +43,7 @@ export class Server {
         this.cache = new Cache({
             redisHost: this.config.config.redisHost,
             redisPort: this.config.config.redisPort,
+            redisPassword: this.config.config.redisPassword,
             defaultExpiry: 60,
         })
         this.promRegister = new client.Registry()
@@ -87,6 +88,7 @@ export class Server {
         const rateLimiter = new RateLimiter({
             redisHost: this.config.config.redisHost,
             redisPort: this.config.config.redisPort,
+            redisPassword: this.config.config.redisPassword,
             per: this.config.opCfg.rateLimitBy,
             limit: this.config.opCfg.rateLimit,
             expire: this.config.opCfg.rateLimitExpire,
@@ -187,7 +189,7 @@ export class Server {
     // Starts the server
     public async start() {
         this.httpServer = this.app.listen(this.config.config.port, () => {
-            console.log('Listening on port ', this.config.config.port)
+            appLogger.info('Listening on port ', this.config.config.port)
         })
     }
 

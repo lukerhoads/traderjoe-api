@@ -38,7 +38,7 @@ testnetProviderPool.providers.push(
 )
 
 export const getRandomProvider = (): JsonRpcProvider => {
-    return process.env.NETWORK === 'mainnet'
+    return process.env.NETWORK?.includes("mainnet")
         ? mainnetProviderPool.providers[
               ~~(mainnetProviderPool.providers.length * Math.random())
           ]

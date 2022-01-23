@@ -1,25 +1,35 @@
 import { BigNumber } from 'ethers'
-import { createClient } from 'redis'
 import { PeriodRate, TimePeriod } from './types'
+import Redis from 'ioredis'
+import { appLogger } from './logger'
 
 export interface CacheConfig {
     redisHost: string
     redisPort: number
+    redisPassword: string
     defaultExpiry: number
 }
 
 export class Cache {
     protected config: CacheConfig
-    protected redisClient: ReturnType<typeof createClient>
+    protected redisClient: Redis.Redis
 
     constructor(config: CacheConfig) {
         this.config = config
-        this.redisClient = createClient({
-            url: `redis://${config.redisHost}:${config.redisPort}`,
+        this.redisClient = new Redis({
+            host: config.redisHost,
+            port: config.redisPort,
+            password: config.redisPassword,
         })
 
-        this.redisClient.on('error', (err) => {
-            console.error("Redis error encountered: ", err)
+        // this.redisClient = new Redis(`redis://${config.redisHost}:${config.redisPort}/0`)
+
+        this.redisClient.on("error", (err: Error) => {
+            throw err
+        })
+
+        this.redisClient.on("ready", () => {
+            appLogger.info("Redis client ready")
         })
 
         if (!this.redisClient) {
@@ -30,7 +40,9 @@ export class Cache {
     }
 
     public async init() {
-        await this.redisClient.connect()
+        if (this.redisClient.status != "connecting") {
+            await this.redisClient.connect()
+        }
     }
 
     public async getPeriodRate(key: string): Promise<PeriodRate | undefined> {

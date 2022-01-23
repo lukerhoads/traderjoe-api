@@ -3,6 +3,8 @@ import cluster from 'cluster'
 import * as os from 'os'
 
 const main = async () => {
+    // const res = await fetch("http://0.0.0.0:6379")
+    // console.log("Res: ", res)
     const server = new Server()
     await server.init()
     server.start()
