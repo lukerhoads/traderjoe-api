@@ -30,7 +30,7 @@
 
 Requirements
 
--   Pool balance (?)
+-   Pool balance
 -   Pool AllocPoint (from masterchef poolInfo contract) need an index though, this is probably the id on the subgraph (https://snowtrace.io/address/0x188bED1968b795d5c9022F6a0bb5931Ac4c18F00#readContract)
 -   Pool TotalAllocPoint (from masterchef contract)
 -   Pool JoePerSec (from masterchef poolInfo contract, with allocPoint)

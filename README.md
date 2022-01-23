@@ -40,4 +40,4 @@ Useful GraphQL reference:
 -   Backwards compatible with (TraderJoe API)[https://github.com/traderjoe-xyz/joe-api] (mostly)
 -   Swagger documentation
 -   Per IP and path rate limiting
--   React client library for easy integration
+-   React client library for easy integration (https://www.npmjs.com/package/use-traderjoe)

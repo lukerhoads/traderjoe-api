@@ -46,17 +46,17 @@ export const MainnetAddress = {
 
 // No testnet documentation yet
 export const TestnetAddress = {
-    JOE_ADDRESS: '0x6e84a6216ea6dacc71ee8e6b0a5b7322eebc0fdd',
-    JOE_FACTORY_ADDRESS: '0x9ad6c38be94206ca50bb0d90783181662f0cfa10',
-    WAVAX_ADDRESS: '0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7',
-    XJOE_ADDRESS: '0x57319d41f71e81f3c65f2a47ca4e001ebafd4f33',
-    USDC_ADDRESS: '0xa7d7079b0fead91f3e65f86e8915cb59c1a4c664',
-    USDT_ADDRESS: '0xc7198437980c041c805a1edcba50c1ce5db95118',
-    WAVAX_USDT_ADDRESS: '0xed8cbd9f0ce3c6986b22002f03c6475ceb7a6256',
-    WAVAX_USDC_ADDRESS: '0xa389f9430876455c36478deea9769b7ca4e3ddb1',
-    TOTALSUPPLYANDBORROW_ADDRESS: '0x40ae0810eb5148c23bd0f574df2dc4dfd6a81c10',
+    JOE_ADDRESS: '',
+    JOE_FACTORY_ADDRESS: '',
+    WAVAX_ADDRESS: '',
+    XJOE_ADDRESS: '',
+    USDC_ADDRESS: '',
+    USDT_ADDRESS: '',
+    WAVAX_USDT_ADDRESS: '',
+    WAVAX_USDC_ADDRESS: '',
+    TOTALSUPPLYANDBORROW_ADDRESS: '',
 
-    BURN_ADDRESS: '0x000000000000000000000000000000000000dEaD',
+    BURN_ADDRESS: '',
     ZERO_ADDRESS: '0x0000000000000000000000000000000000000000',
 
     TEAM_TREASURY_WALLETS: [
@@ -70,14 +70,15 @@ export const TestnetAddress = {
         '0xd858ebaa943b4c2fb06ba0ba8920a132fd2410ee', // Multi-sig wallet
     ],
 
-    JOETROLLER_ADDRESS: '0xdc13687554205e5b89ac783db14bb5bba4a1edac', // proxy
-    JAVAX_ADDRESS: '0xc22f01ddc8010ee05574028528614634684ec29e',
+    JOETROLLER_ADDRESS: '', // proxy
+    JAVAX_ADDRESS: '',
 
-    JOE_MASTER_CHEF_ADDRESS: '0x188bed1968b795d5c9022f6a0bb5931ac4c18f00',
+    JOE_MASTER_CHEF_ADDRESS: '',
 
-    GOHM_REWARD_ADDRESS: '0x99ad2a9a0d4a15d861c0b60c7df8965d1b3e18d8',
+    GOHM_REWARD_ADDRESS: '',
 }
 
+// No testnet configuration specified in docs
 export const Address = MainnetAddress
 
 export const CachePrefix = {
