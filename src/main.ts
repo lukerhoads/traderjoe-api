@@ -3,33 +3,30 @@ import cluster from 'cluster'
 import * as os from 'os'
 
 const main = async () => {
-    // const res = await fetch("http://0.0.0.0:6379")
-    // console.log("Res: ", res)
     const server = new Server()
     await server.init()
     server.start()
 }
 
-// if (process.env.MODE === 'multicore') {
-//     if (cluster.isPrimary) {
-//         const cores = os.cpus().length
-//         const availableCores =
-//             cores % 2 === 0 ? cores / 2 : Math.ceil(cores / 2)
+if (process.env.MODE === 'multicore') {
+    console.log("In here?")
+    if (cluster.isPrimary) {
+        const cores = os.cpus().length
+        const availableCores =
+            cores % 2 === 0 ? cores / 2 : Math.ceil(cores / 2)
 
-//         console.log('Available cores, ', cores, ', using ', availableCores)
+        console.log('Available cores, ', cores, ', using ', availableCores)
 
-//         for (let i = 0; i < availableCores; i++) {
-//             cluster.fork()
-//         }
+        for (let i = 0; i < availableCores; i++) {
+            cluster.fork()
+        }
 
-//         cluster.on('exit', (worker) => {
-//             console.log('Worker ', worker.id, 'has exited.')
-//         })
-//     } else {
-//         main()
-//     }
-// } else {
-//     main()
-// }
-
-main()
+        cluster.on('exit', (worker) => {
+            console.log('Worker ', worker.id, 'has exited.')
+        })
+    } else {
+        main()
+    }
+} else {
+    main()
+}

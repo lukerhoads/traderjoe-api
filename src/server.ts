@@ -189,7 +189,7 @@ export class Server {
     // Starts the server
     public async start() {
         this.httpServer = this.app.listen(this.config.config.port, () => {
-            appLogger.info('Listening on port ', this.config.config.port)
+            appLogger.info(`Listening on port ${this.config.config.port}`)
         })
     }
 
