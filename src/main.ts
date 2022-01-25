@@ -9,7 +9,6 @@ const main = async () => {
 }
 
 if (process.env.MODE === 'multicore') {
-    console.log("In here?")
     if (cluster.isPrimary) {
         const cores = os.cpus().length
         const availableCores =
