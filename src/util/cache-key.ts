@@ -1,4 +1,3 @@
 export const getCacheKey = (...args: string[]) => {
-    return args.join("_")
+    return args.join('_')
 }
-

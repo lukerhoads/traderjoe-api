@@ -28,12 +28,12 @@ export class RateLimiter {
 
         // this.redisClient = new Redis(`redis://${config.redisHost}:${config.redisPort}/0`)
 
-        this.redisClient.on("error", (err: Error) => {
+        this.redisClient.on('error', (err: Error) => {
             throw err
         })
 
-        this.redisClient.on("ready", () => {
-            appLogger.info("Redis client ready")
+        this.redisClient.on('ready', () => {
+            appLogger.info('Redis client ready')
         })
 
         if (!this.redisClient) {
@@ -44,7 +44,7 @@ export class RateLimiter {
     }
 
     public async init() {
-        if (this.redisClient.status != "connecting") {
+        if (this.redisClient.status != 'connecting') {
             await this.redisClient.connect()
         }
     }

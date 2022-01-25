@@ -41,3 +41,6 @@ Useful GraphQL reference:
 -   Swagger documentation
 -   Per IP and path rate limiting
 -   React client library for easy integration (https://www.npmjs.com/package/use-traderjoe)
+
+## Development
+Make sure to change REDIS_HOST to `redis` when using Docker Compose and `localhost` when in standard development.

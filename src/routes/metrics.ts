@@ -8,6 +8,7 @@ import {
 import {
     getExchangeTvlQuery,
     lastDayVolume,
+    lastHourVolumeQuery,
     volumeOverTimeQuery,
 } from '../queries'
 import { Address, CachePrefix } from '../constants'
@@ -45,8 +46,6 @@ export class MetricsController {
     private hardRefreshInterval: NodeJS.Timer
 
     private tvl: BigNumber = BigNumber.from('0')
-
-    // private cachedVolume: { [key in TimePeriod]?: BigNumber } = {}
 
     constructor(
         config: OpConfig,
@@ -86,8 +85,8 @@ export class MetricsController {
         })
 
         router.get('/volume', async (req, res, next) => {
-            const err = validatePeriod(req.query.period as string)
-            if (err) next(err)
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
             const period = req.query.period as TimePeriod
             const volume = await this.getVolume(period)
             res.send(formatRes(bnStringToDecimal(volume.toString(), 18)))
@@ -172,7 +171,9 @@ export class MetricsController {
                 throw new Error('Unable to get one minute data')
             case '1h':
                 // This hourdata entity query isn't working
-                // const { data: { hourDatas } } = await this.exchangeGraphClient.query({
+                // const {
+                //     data: { hourDatas },
+                // } = await this.exchangeGraphClient.query({
                 //     query: lastHourVolumeQuery,
                 // })
 

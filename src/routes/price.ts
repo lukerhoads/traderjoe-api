@@ -2,7 +2,12 @@ import express from 'express'
 import { getRandomProvider } from '../provider'
 import { Address, BigNumberMantissa, CachePrefix } from '../constants'
 import { BigNumber, Contract, ethers } from 'ethers'
-import { bnStringToDecimal, formatRes, getCacheKey, validateAddress } from '../util'
+import {
+    bnStringToDecimal,
+    formatRes,
+    getCacheKey,
+    validateAddress,
+} from '../util'
 import { OpConfig } from '../config'
 import { Cache } from '../cache'
 

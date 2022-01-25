@@ -3,7 +3,13 @@ import express from 'express'
 import { MetricsController, PriceController } from '.'
 import { OpConfig } from '../config'
 import { TimePeriod } from '../types'
-import { formatRes, bnStringToDecimal, rateToYear, getCacheKey, validatePeriod } from '../util'
+import {
+    formatRes,
+    bnStringToDecimal,
+    rateToYear,
+    getCacheKey,
+    validatePeriod,
+} from '../util'
 import { BigNumberMantissa, CachePrefix, STAKING_FEE_RATE } from '../constants'
 import { getRandomProvider } from '../provider'
 import { Address } from '../constants'
@@ -67,8 +73,9 @@ export class StakeController {
     }
 
     public async getStakingRewards(samplePeriod: TimePeriod) {
-        const cachedStakeRewards =
-            await this.cache.getPeriodRate(getCacheKey(CachePrefix.stake, samplePeriod, 'rewards'))
+        const cachedStakeRewards = await this.cache.getPeriodRate(
+            getCacheKey(CachePrefix.stake, samplePeriod, 'rewards')
+        )
         if (cachedStakeRewards) return cachedStakeRewards.rate
 
         const periodVolume = await this.metricsController.getVolume(
@@ -98,8 +105,9 @@ export class StakeController {
         const router = express.Router()
 
         router.get('/apr', async (req, res, next) => {
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
             const samplePeriod = req.query.period as TimePeriod
-            if (!validatePeriod(req.query.period as string)) next('Invalid period: ' + req.query.period)
             try {
                 const stakingApr = await this.getStakingRewards(samplePeriod)
                 res.send(

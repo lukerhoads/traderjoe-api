@@ -397,11 +397,15 @@ export class BankerController implements Controller {
 
         // Total supply and borrow across pools
         router.get('/supply', async (req, res, next) => {
-            res.send(formatRes(bnStringToDecimal(this.totalSupply.toString(), 18)))
+            res.send(
+                formatRes(bnStringToDecimal(this.totalSupply.toString(), 18))
+            )
         })
 
         router.get('/borrow', async (req, res, next) => {
-            res.send(formatRes(bnStringToDecimal(this.totalBorrow.toString(), 18)))
+            res.send(
+                formatRes(bnStringToDecimal(this.totalBorrow.toString(), 18))
+            )
         })
 
         // Total supply and borrow across one pool

@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "main": "dist/src/main.js",
     "scripts": {
-        "build": "npx tsc -p .", 
+        "build": "npx tsc -p .",
         "start": "node dist/src/main.js",
         "dev": "nodemon --watch openapi.yaml src/main.ts",
         "format": "yarn prettier --write ."

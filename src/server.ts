@@ -59,12 +59,15 @@ export class Server {
     }
 
     public async init() {
+        appLogger.info('Setting up routes...')
         await this.cache.init()
         this.setupDocs()
         this.app.set('trust proxy', true)
-        this.app.use(cors({
-            origin: '*'
-        }))
+        this.app.use(
+            cors({
+                origin: '*',
+            })
+        )
         this.app.use(bodyParser.json())
         this.app.use(bodyParser.urlencoded({ extended: true }))
         this.app.use(loggerMiddleware)
@@ -188,12 +191,14 @@ export class Server {
 
     // Starts the server
     public async start() {
+        appLogger.info('Starting server...')
         this.httpServer = this.app.listen(this.config.config.port, () => {
             appLogger.info(`Listening on port ${this.config.config.port}`)
         })
     }
 
     public async stop() {
+        appLogger.info('Stopping server...')
         if (!this.httpServer) {
             return
         }

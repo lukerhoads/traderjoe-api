@@ -17,10 +17,11 @@ export const validatePoolId = (poolId: string) => {
 const periods = ['1s', '1m', '1h', '1w', '1d', '1mo', '1y']
 
 export const validatePeriod = (period: string) => {
-    return periods.includes(period)
+    return periods.includes(period) || !period
 }
 
 export const validateAddress = (address: string) => {
-    if (!ethAddrRegexp.test(address)) return new Error(`Address ${address} invalid`)
+    if (!ethAddrRegexp.test(address))
+        return new Error(`Address ${address} invalid`)
     return null
 }

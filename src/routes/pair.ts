@@ -235,9 +235,9 @@ export class PairController {
             const pairAddress = req.params.pairAddress.toLowerCase()
             const err = validateAddress(pairAddress)
             if (err) next(err)
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
             const period = req.query.period as TimePeriod
-            const err2 = validatePeriod(period)
-            if (err2) next(err2)
             try {
                 const pairVolume = await this.getPairVolume(pairAddress, period)
                 res.send(formatRes(pairVolume.toString()))
@@ -250,8 +250,8 @@ export class PairController {
             const pairAddress = req.params.pairAddress.toLowerCase()
             const err = validateAddress(pairAddress)
             if (err) next(err)
-            const err2 = validatePeriod(req.query.period as string)
-            if (err2) next(err2)
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
             const period = req.query.period as TimePeriod
             try {
                 const feesCollected = await this.getPairFees(
@@ -268,14 +268,11 @@ export class PairController {
             const pairAddress = req.params.pairAddress.toLowerCase()
             const err = validateAddress(pairAddress)
             if (err) next(err)
-            const err2 = validatePeriod(req.query.period as string)
-            if (err2) next(err2)
-            const samplePeriod = req.query.period as TimePeriod
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
+            const period = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPairAprGraph(
-                    pairAddress,
-                    samplePeriod
-                )
+                const poolApr = await this.getPairAprGraph(pairAddress, period)
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)

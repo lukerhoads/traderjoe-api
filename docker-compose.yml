@@ -2,7 +2,7 @@ version: '3'
 
 networks:
     monitoring:
-        driver: bridge 
+        driver: bridge
     app:
         driver: bridge
 volumes:
@@ -20,7 +20,7 @@ services:
         networks:
             - monitoring
         extra_hosts:
-            - "host.docker.internal:host-gateway"
+            - 'host.docker.internal:host-gateway'
     grafana:
         image: grafana/grafana:latest
         container_name: grafana
@@ -36,36 +36,36 @@ services:
         networks:
             - monitoring
         extra_hosts:
-            - "host.docker.internal:host-gateway"
+            - 'host.docker.internal:host-gateway'
     redis:
         image: redis:6-alpine
         volumes:
-          - ./redis.conf:/usr/local/etc/redis/redis.conf
+            - ./redis.conf:/usr/local/etc/redis/redis.conf
         command:
-          - redis-server
-          - /usr/local/etc/redis/redis.conf
+            - redis-server
+            - /usr/local/etc/redis/redis.conf
         networks:
-          - app
+            - app
         ports:
-          - 6379:6379
+            - 6379:6379
     traderjoe-api:
         build: .
         volumes:
-          - .:/usr/src/app
+            - .:/usr/src/app
         user: root
         environment:
-          - NODE_ENV="${NODE_ENV}"
-          - NETWORK="${NETWORK}"
-          - HOST="${HOST}"
-          - PORT="${PORT}"
-          - REDIS_HOST="${REDIS_HOST}"
-          - REDIS_PORT="${REDIS_PORT}"
+            - NODE_ENV="${NODE_ENV}"
+            - NETWORK="${NETWORK}"
+            - HOST="${HOST}"
+            - PORT="${PORT}"
+            - REDIS_HOST="${REDIS_HOST}"
+            - REDIS_PORT="${REDIS_PORT}"
         ports:
-          - 3000:3000
+            - 3000:3000
         depends_on:
-          - redis
+            - redis
         networks:
-          - app 
+            - app
         # deploy:
         #   mode: replicated
         #   replicas: 3
@@ -73,5 +73,5 @@ services:
     #     image: alpine:latest
     #     networks:
     #       - app
-    #     stdin_open: true 
+    #     stdin_open: true
     #     tty: true

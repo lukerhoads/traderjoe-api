@@ -322,10 +322,11 @@ export class PoolController {
             const poolId = req.params.poolId
             const err = validatePoolId(poolId)
             if (err) next(err)
-            if (!validatePeriod(req.query.period as string)) next('Invalid period: ' + req.query.period)
-            const samplePeriod = req.query.period as TimePeriod
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
+            const period = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPoolApr(poolId, samplePeriod)
+                const poolApr = await this.getPoolApr(poolId, period)
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)
@@ -336,10 +337,11 @@ export class PoolController {
             const poolId = req.params.poolId
             const err = validatePoolId(poolId)
             if (err) next(err)
-            if (!validatePeriod(req.query.period as string)) next('Invalid period: ' + req.query.period)
-            const samplePeriod = req.query.period as TimePeriod
+            const valid = validatePeriod(req.query.period as string)
+            if (!valid) next('Invalid period: ' + req.query.period)
+            const period = req.query.period as TimePeriod
             try {
-                const poolApr = await this.getPoolBonus(poolId, samplePeriod)
+                const poolApr = await this.getPoolBonus(poolId, period)
                 res.send(formatRes(bnStringToDecimal(poolApr.toString(), 18)))
             } catch (err) {
                 next(err)
